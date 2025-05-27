@@ -137,13 +137,13 @@ export default function RootNavigator() {
 
 const styles = StyleSheet.create({
   customButtonContainer: {
-    top: -30,
+    top: -10,
     justifyContent: 'center',
     alignItems: 'center',
   },
   customButton: {
-    width: 70,
-    height: 70,
+    width: 55,
+    height: 55,
     borderRadius: 35,
     backgroundColor: '#6C63FF',
     justifyContent: 'center',

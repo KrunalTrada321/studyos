@@ -136,8 +136,8 @@ export default function ToDoScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  tabContainer: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 10 },
-  tab: { paddingVertical: 8, paddingHorizontal: 16, backgroundColor: '#ddd', borderRadius: 8 },
+  tabContainer: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 , marginHorizontal: 12},
+  tab: { paddingVertical: 8, paddingHorizontal: 32, backgroundColor: '#ddd', borderRadius: 8 },
   tabActive: { backgroundColor: '#4F46E5' },
   tabText: { color: '#333' },
   tabTextActive: { color: '#fff', fontWeight: 'bold' },

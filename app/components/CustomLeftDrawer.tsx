@@ -11,7 +11,7 @@ import {
 export default function CustomLeftDrawer({ onClose }) {
   return (
     <View style={styles.overlay}>
-
+ 
       {/* Drawer content */}
       <View style={styles.drawer}>
         <Text style={styles.title}>Left Drawer</Text>

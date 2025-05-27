@@ -153,12 +153,15 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-evenly',
     marginBottom: 12,
   },
   tabButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 100,
+    paddingHorizontal: 0,
     paddingVertical: 8,
-    paddingHorizontal: 20,
     borderRadius: 8,
     backgroundColor: '#ccc',
   },

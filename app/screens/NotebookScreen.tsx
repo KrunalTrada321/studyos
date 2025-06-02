@@ -1,4 +1,5 @@
 import { FontAwesome, FontAwesome5, Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { useNavigation } from 'expo-router';
 import React, { useState } from 'react';
 import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
@@ -38,6 +39,7 @@ const automationData = [
 
 const NotebookScreen = () => {
   const [activeTab, setActiveTab] = useState('Notes');
+  const navigation = useNavigation();
 
   const renderTabButtons = () => {
     return (
@@ -116,19 +118,25 @@ const NotebookScreen = () => {
       keyExtractor={(item) => item.title}
       contentContainerStyle={styles.listContainer}
       renderItem={({ item }) => (
-        <View style={styles.automationItem}>
-          <View style={styles.iconContainer}>
-            {item.icon === 'email' && <MaterialIcons name="email" size={20} color="#4B4BFF" />}
-            {item.icon === 'note' && <MaterialIcons name="note" size={20} color="green" />}
+
+        <TouchableOpacity onPress={() => navigation.navigate('AutomationDetail', { item })}>
+
+
+          <View style={styles.automationItem}>
+            <View style={styles.iconContainer}>
+              {item.icon === 'email' && <MaterialIcons name="email" size={20} color="#4B4BFF" />}
+              {item.icon === 'note' && <MaterialIcons name="note" size={20} color="green" />}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.listTitle}>{item.title}</Text>
+              <Text style={styles.listSubtitle}>{item.date}</Text>
+              {item.to && <Text style={styles.listSubtitle}>To: {item.to}</Text>}
+              <Text style={styles.listSubtitle}>Subject: {item.subject}</Text>
+            </View>
+            <Ionicons name="checkmark-circle-outline" size={20} color="#555" />
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.listTitle}>{item.title}</Text>
-            <Text style={styles.listSubtitle}>{item.date}</Text>
-            {item.to && <Text style={styles.listSubtitle}>To: {item.to}</Text>}
-            <Text style={styles.listSubtitle}>Subject: {item.subject}</Text>
-          </View>
-          <Ionicons name="checkmark-circle-outline" size={20} color="#555" />
-        </View>
+        </TouchableOpacity>
+
       )}
     />
   );

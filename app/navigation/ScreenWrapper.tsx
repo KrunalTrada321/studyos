@@ -31,7 +31,7 @@ export default function ScreenWrapper({ Component }) {
       <Modal visible={showLeftDrawer} animationType="fade" transparent>
         <CustomLeftDrawer onClose={() => setShowLeftDrawer(false)} />
       </Modal>
-
+ 
       {/* Right Drawer Modal */}
       <Modal visible={showRightDrawer} animationType="fade" transparent>
         <CustomRightDrawer onClose={() => setShowRightDrawer(false)} />

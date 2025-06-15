@@ -1,47 +1,96 @@
+
+
+
 import { MaterialIcons } from '@expo/vector-icons';
-import React, { useState } from 'react';
-import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Camera, CameraView } from 'expo-camera';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Dimensions,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { colors } from '../utils/colors';
 
 const { width } = Dimensions.get('window');
 
 const CaptureScreen = () => {
+  const [mode, setMode] = useState('record'); // 'record' or 'scan'
   const [isRecording, setIsRecording] = useState(false);
-  const [timer] = useState(26.11); // Static for UI preview
-  const [mode, setMode] = useState('Voice'); // Voice or Text
+  const [hasPermission, setHasPermission] = useState(null);
+  const cameraRef = useRef(null);
+
+  useEffect(() => {
+    if (mode === 'scan') {
+      (async () => {
+        const { status } = await Camera.requestCameraPermissionsAsync();
+        setHasPermission(status === 'granted');
+      })();
+    }
+  }, [mode]);
 
   return (
     <View style={styles.container}>
       {/* Top Buttons */}
       <View style={styles.topButtons}>
-        <TouchableOpacity style={[styles.topBtn, styles.activeBtn]}>
-          <Text style={styles.activeBtnText}>Record</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.topBtn}>
-          <Text style={styles.disabledBtnText}>Scan</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Mic Section */}
-      <View style={styles.centerSection}>
         <TouchableOpacity
-          style={styles.micCircle}
-          onPress={() => setIsRecording(!isRecording)}
+          style={[styles.topBtn, mode === 'record' && styles.activeBtn]}
+          onPress={() => setMode('record')}
         >
-          <MaterialIcons name="mic" size={40} color="white" />
+          <Text style={mode === 'record' ? styles.activeBtnText : styles.disabledBtnText}>Record</Text>
         </TouchableOpacity>
-
-        <Text style={{marginTop: 15, fontSize: 16, fontWeight:'400' }}>Start Recording</Text>
+        <TouchableOpacity
+          style={[styles.topBtn, mode === 'scan' && styles.activeBtn]}
+          onPress={() => setMode('scan')}
+        >
+          <Text style={mode === 'scan' ? styles.activeBtnText : styles.disabledBtnText}>Scan</Text>
+        </TouchableOpacity>
       </View>
+
+      {/* Dynamic Section */}
+      <View style={styles.centerSection}>
+        {mode === 'record' ? (
+          <>
+
+            <TouchableOpacity
+              style={styles.micCircle}
+              onPress={() => setIsRecording(!isRecording)}
+            >
+              <View style={{ borderRadius: 50, padding: 8, backgroundColor: '#BCC5FF' }}>
+                <MaterialIcons name="mic" size={52} color="white" />
+              </View>
+            </TouchableOpacity>
+            <Text style={{ marginTop: 15, fontSize: 16, fontWeight: '600' }}>
+              {isRecording ? 'Recording...' : 'Start Recording'}
+            </Text>
+
+
+          </>
+        ) : hasPermission === false ? (
+          <Text>No access to camera</Text>
+        ) : (
+          <CameraView
+            ref={cameraRef}
+            style={styles.cameraPreview}
+          // type={Camera.Constants.Type.back}
+          />
+        )}
+      </View>
+
 
       {/* Bottom Buttons */}
-      <View style={styles.bottomButtons}>
+      {mode === 'record' && (<View style={styles.bottomButtons}>
         <TouchableOpacity style={styles.bottomBtn}>
           <Text style={styles.disabledBtnText}>Previous</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.bottomBtn, styles.activeBtn]}>
           <Text style={styles.activeBtnText}>New</Text>
-        </TouchableOpacity>
-      </View>
+        </TouchableOpacity> 
+      </View>)}
+
+
+
     </View>
   );
 };
@@ -52,7 +101,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F7F7F7',
     paddingTop: 20,
     alignItems: 'center',
-    justifyContent: 'space-between'
+    justifyContent: 'space-between',
   },
   topButtons: {
     flexDirection: 'row',
@@ -62,14 +111,14 @@ const styles = StyleSheet.create({
   topBtn: {
     flex: 1,
     marginHorizontal: 5,
-    paddingVertical: 10,
+    paddingVertical: 14,
     borderRadius: 10,
     backgroundColor: '#ccc',
     alignItems: 'center',
-    elevation: 3
+    elevation: 3,
   },
   activeBtn: {
-    backgroundColor: '#5A5ACF',
+    backgroundColor: colors.primary,
   },
   activeBtnText: {
     color: '#fff',
@@ -82,95 +131,36 @@ const styles = StyleSheet.create({
   centerSection: {
     alignItems: 'center',
     flex: 1,
-    justifyContent: 'center'
+    justifyContent: 'center',
+    width: '100%',
   },
   micCircle: {
-    backgroundColor: '#5A5ACF',
+    backgroundColor: colors.primary,
     borderRadius: 100,
-    padding: 30,
-    elevation: 5
+    padding: 40,
+    elevation: 5,
   },
-  startText: {
-    marginTop: 20,
-    fontWeight: '600'
-  },
-  timerText: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginVertical: 15
-  },
-  waveformContainer: {
-    width: width - 60,
-    height: 80,
-    backgroundColor: '#eee',
+  cameraPreview: {
+    width: width - 40,
+    height: 400,
     borderRadius: 10,
-    justifyContent: 'center',
-    position: 'relative',
-    paddingHorizontal: 20
-  },
-  waveformBarGroup: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    position: 'relative'
-  },
-  bar: {
-    width: 6,
-    backgroundColor: '#5A5ACF',
-    marginHorizontal: 3,
-    borderRadius: 4
-  },
-  playbackPointer: {
-    position: 'absolute',
-    height: 80,
-    width: 2,
-    backgroundColor: '#000',
-    top: 0,
-    left: '50%'
-  },
-  statusText: {
-    marginTop: 10,
-    fontSize: 14,
-    color: 'gray'
-  },
-  modeToggle: {
-    flexDirection: 'row',
-    marginTop: 20
-  },
-  toggleBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 25,
-    backgroundColor: '#ccc',
-    borderRadius: 10,
-    marginHorizontal: 5
-  },
-  selectedToggle: {
-    backgroundColor: '#5A5ACF'
-  },
-  toggleText: {
-    color: '#444',
-    fontWeight: '600'
-  },
-  toggleTextActive: {
-    color: '#fff',
-    fontWeight: '600'
+    overflow: 'hidden',
   },
   bottomButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: width - 40,
-    marginBottom: 20
+    marginBottom: 20,
   },
   bottomBtn: {
     flex: 1,
     marginHorizontal: 5,
-    paddingVertical: 10,
+    paddingVertical: 14,
     borderRadius: 10,
     backgroundColor: '#ccc',
     alignItems: 'center',
-    elevation: 3
-  }
+    elevation: 3,
+  },
 });
 
 export default CaptureScreen;
- 

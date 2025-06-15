@@ -76,9 +76,10 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 110,
+    height: 110,
+    borderRadius: 60,
+    marginTop: 20,
     backgroundColor: '#ECEBFD',
     justifyContent: 'center',
     alignItems: 'center',
@@ -112,13 +113,14 @@ const styles = StyleSheet.create({
   },
   cardLabel: {
     fontSize: 14,
-    color: '#555',
+    color: '#000000',
+    fontWeight: '700',
     marginBottom: 6,
   },
   cardValue: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#000',
+    color: 'grey',
   },
   cardUnit: {
     fontSize: 14,
@@ -126,7 +128,7 @@ const styles = StyleSheet.create({
   },
   button: {
     width: '100%',
-    backgroundColor: '#ccc',
+    backgroundColor: '#BABABA',
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
@@ -138,7 +140,7 @@ const styles = StyleSheet.create({
   },
   signOutButton: {
     width: '100%',
-    backgroundColor: '#FF4D4D',
+    backgroundColor: '#FF5C5C',
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',

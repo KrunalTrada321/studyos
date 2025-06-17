@@ -60,6 +60,7 @@ import LearnScreen from '../screens/LearnScreen';
 import NotebookScreen from '../screens/NotebookScreen';
 import RecordScreen from '../screens/RecordScreen';
 import ToDoScreen from '../screens/ToDoScreen';
+import { colors } from '../utils/colors';
 import ScreenWrapper from './ScreenWrapper';
 
 const Tab = createBottomTabNavigator();
@@ -144,8 +145,8 @@ const styles = StyleSheet.create({
   customButton: {
     width: 55,
     height: 55,
-    borderRadius: 35,
-    backgroundColor: '#6C63FF',
+    borderRadius: 35, 
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',

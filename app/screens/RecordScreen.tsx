@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { colors } from '../utils/colors';
 
 const { width } = Dimensions.get('window');
 
@@ -51,7 +52,11 @@ const RecordScreen = () => {
       <Text style={styles.title}>AI Tutor</Text>
 
       <View style={styles.micButton}>
+       
+        <View style={{padding: 10, backgroundColor: colors.lightPrimary, borderRadius: 50, height: 70, width: 70, alignItems: 'center', justifyContent: 'center'}}>
         <FontAwesome name="microphone" size={48} color="white" />
+        </View>
+      
       </View>
 
       <Text style={styles.timer}>{formatTime(recordingTime)}</Text>
@@ -92,10 +97,10 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   micButton: {
-    backgroundColor: '#4B4BFF',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    backgroundColor: colors.primary,
+    width: 140,
+    height: 140,
+    borderRadius: 80,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 30,
@@ -135,13 +140,12 @@ const styles = StyleSheet.create({
   },
   switchContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
     gap: 10,
   },
   activeSwitch: {
-    backgroundColor: '#4B4BFF',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+    backgroundColor:  colors.primary,
+    paddingVertical: 15,
+    paddingHorizontal: 50,
     borderRadius: 10,
   },
   activeText: {
@@ -150,8 +154,8 @@ const styles = StyleSheet.create({
   },
   inactiveSwitch: {
     backgroundColor: '#ddd',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+    paddingVertical: 15,
+    paddingHorizontal: 50,
     borderRadius: 10,
   },
   inactiveText: {

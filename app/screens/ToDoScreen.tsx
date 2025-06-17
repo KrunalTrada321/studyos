@@ -2,12 +2,13 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
+import { colors } from '../utils/colors';
 
 // Sub-tabs
 const ToDoTab = () => (
   <ScrollView contentContainerStyle={styles.scrollContainer}>
-    <View style={styles.card}><Text style={styles.sectionHeader}>Today</Text><Text>No Task for today</Text></View>
-    <Text style={styles.subHeader}>🟦 Overdue</Text>
+    <View style={styles.card}><Text style={{textAlign: 'center', fontWeight: '700'}}>Today</Text><Text style={{textAlign: 'center', marginTop: 5}}>No Task for today</Text></View>
+    <Text style={styles.subHeader}> Overdue</Text>
     <View style={styles.taskCard}>
       <View>
         <Text style={styles.taskTitle}>English Essay</Text>
@@ -72,6 +73,11 @@ const PlansTab = () => (
   <ScrollView contentContainerStyle={styles.scrollContainer}>
     <Text style={styles.subHeader}>📚 Study Plans</Text>
     <View style={styles.planCard}>
+    
+    <View style={{backgroundColor: '#FF5C5C', padding: 6, position: 'absolute', right: 8, top: 8, borderRadius: 6}}>
+      <Text style={{color: colors.white, fontWeight: '500'}}>High</Text>
+    </View>
+
       <Text style={styles.planTitle}>Final Exam Preparation</Text>
       <Text>Comprehensive review of mechanics, thermodynamics, and electromagnetism</Text>
       <View style={styles.taskMeta}>
@@ -86,6 +92,12 @@ const PlansTab = () => (
     </View>
 
     <View style={styles.planCard}>
+
+    <View style={{backgroundColor: '#FF9B28', padding: 6, position: 'absolute', right: 8, top: 8, borderRadius: 6}}>
+      <Text style={{color: colors.white, fontWeight: '500'}}>Medium</Text>
+    </View>
+
+
       <Text style={styles.planTitle}>Midterm Review</Text>
       <Text>Review of derivatives, integrals, and applications</Text>
       <View style={styles.taskMeta}>
@@ -136,21 +148,21 @@ export default function ToDoScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  tabContainer: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 , marginHorizontal: 12},
-  tab: { paddingVertical: 8, paddingHorizontal: 32, backgroundColor: '#ddd', borderRadius: 8 },
-  tabActive: { backgroundColor: '#4F46E5' },
+  tabContainer: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 14 , marginHorizontal: 12},
+  tab: { paddingVertical: 14, paddingHorizontal: 32, backgroundColor: '#ddd', borderRadius: 8 },
+  tabActive: { backgroundColor: colors.primary },
   tabText: { color: '#333' },
   tabTextActive: { color: '#fff', fontWeight: 'bold' },
 
   scrollContainer: { padding: 16 },
   card: { padding: 16, backgroundColor: '#f9f9f9', borderRadius: 10, marginBottom: 12 },
-  subHeader: { fontWeight: 'bold', fontSize: 16, marginVertical: 8 },
-  taskCard: { backgroundColor: '#f1f1f1', borderRadius: 10, padding: 12, marginVertical: 6 },
+  subHeader: { fontWeight: 'bold', fontSize: 16, marginVertical: 8 , textAlign: 'center'},
+  taskCard: { backgroundColor: '#f1f1f1', borderRadius: 10, padding: 12, marginVertical: 6, flexDirection: 'row', justifyContent: 'space-between' },
   taskTitle: { fontWeight: 'bold', fontSize: 16 },
   taskDue: { color: '#666', marginTop: 4 },
-  taskMeta: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
-  badgeGreen: { backgroundColor: '#4CAF50', padding: 4, borderRadius: 6, color: '#fff' },
-  badgeRed: { backgroundColor: '#F44336', padding: 4, borderRadius: 6, color: '#fff' },
+  taskMeta: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8, alignItems: 'center' },
+  badgeGreen: { backgroundColor: '#4CAF50', padding: 4, borderRadius: 6, color: '#fff', justifyContent: 'center', },
+  badgeRed: { marginLeft: 5, backgroundColor: '#F44336', padding: 4, borderRadius: 6, color: '#fff' },
 
   calendarContainer: { padding: 16 },
   selectedDate: { textAlign: 'center', marginTop: 12, fontSize: 16 },
@@ -168,5 +180,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 10
   },
-  disabledText: { color: '#333' },
+  disabledText: { color: '#FFFFFF', fontWeight: '700' },
 });

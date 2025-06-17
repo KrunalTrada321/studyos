@@ -2,6 +2,7 @@ import { FontAwesome, FontAwesome5, Ionicons, MaterialIcons } from '@expo/vector
 import { useNavigation } from 'expo-router';
 import React, { useState } from 'react';
 import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { colors } from '../utils/colors';
 
 const tabs = ['Notes', 'Mindmaps', 'Automation'];
 
@@ -69,11 +70,18 @@ const NotebookScreen = () => {
 
   const renderNotesTab = () => (
     <View style={styles.notesContainer}>
+     
+     <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>      
+     <View style={{flex:1}}>
       <TextInput style={styles.searchInput} placeholder="Search Notes" />
+      </View>
+
       <View style={styles.searchActions}>
         <Ionicons name="filter" size={24} color="#333" style={styles.icon} />
         <Ionicons name="add" size={28} color="#333" style={styles.icon} />
       </View>
+      </View>
+
       <View style={styles.emptyBox}>
         <Text style={styles.emptyText}>No notes available yet</Text>
         <View style={styles.noteButtons}>
@@ -169,12 +177,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: 100,
     paddingHorizontal: 0,
-    paddingVertical: 8,
+    paddingVertical: 14,
     borderRadius: 8,
     backgroundColor: '#ccc',
   },
   activeTabButton: {
-    backgroundColor: '#4B4BFF',
+    backgroundColor: colors.primary
   },
   tabText: {
     color: '#444',
@@ -191,15 +199,13 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
     borderRadius: 10,
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    width: '100%',
+    paddingVertical: 12,
     marginBottom: 8,
   },
   searchActions: {
     flexDirection: 'row',
     marginBottom: 16,
     justifyContent: 'flex-end',
-    width: '100%',
   },
   icon: {
     marginHorizontal: 8,
@@ -208,20 +214,23 @@ const styles = StyleSheet.create({
     width: '100%',
     backgroundColor: '#f2f2f2',
     padding: 16,
+    marginTop: 12,
     borderRadius: 12,
     alignItems: 'center',
   },
   emptyText: {
     fontSize: 16,
+    fontWeight: '700',
     marginBottom: 12,
     color: '#444',
   },
   noteButtons: {
     flexDirection: 'row',
+    marginTop: 8,
     gap: 12,
   },
   recordBtn: {
-    backgroundColor: '#4B4BFF',
+    backgroundColor: colors.primary,
     padding: 10,
     borderRadius: 8,
   },

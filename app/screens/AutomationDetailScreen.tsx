@@ -1,9 +1,23 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from 'expo-router';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { colors } from '../utils/colors';
 
 const AutomationDetailScreen = () => {
+  
+  const navigation = useNavigation();
+
   return (
     <ScrollView style={styles.container}>
+      <TouchableOpacity
+        style={{ position: 'absolute', top: 0, left: 0, backgroundColor: colors.primary, padding: 8, borderRadius: 20 }}
+        onPress={() => navigation.goBack()}
+      >
+        <Ionicons name="arrow-back" size={24} color="white" />
+      </TouchableOpacity>
+
+     <View style={{marginTop: 60}}> 
       <Text style={styles.title}>Question about Assignment</Text>
       <Text style={styles.date}>5/8/2025 - Draft</Text>
 
@@ -40,6 +54,8 @@ const AutomationDetailScreen = () => {
           Student
         </Text>
       </View>
+
+     </View>
     </ScrollView>
   );
 };
@@ -49,7 +65,7 @@ export default AutomationDetailScreen;
 const styles = StyleSheet.create({
   container: {
     padding: 20,
-    marginTop: 10,
+    marginTop: 0,
     backgroundColor: '#fff',
   },
   title: {
@@ -126,7 +142,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 });
- 
+
 
 
 

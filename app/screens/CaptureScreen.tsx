@@ -57,7 +57,7 @@ const CaptureScreen = () => {
               style={styles.micCircle}
               onPress={() => setIsRecording(!isRecording)}
             >
-              <View style={{ borderRadius: 50, padding: 8, backgroundColor: '#BCC5FF' }}>
+              <View style={{ borderRadius: 50, padding: 10, backgroundColor: '#BCC5FF' }}>
                 <MaterialIcons name="mic" size={52} color="white" />
               </View>
             </TouchableOpacity>

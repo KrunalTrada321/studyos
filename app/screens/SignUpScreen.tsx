@@ -15,11 +15,11 @@ import { Ionicons } from '@expo/vector-icons';
 import Constants from '../utils/constants';
 import {storeToken, getToken} from '../utils/token'
 
-interface SignInScreenProps {
+interface SignUpScreenProps {
   navigation?: any;
 }
 
-const SignInScreen: React.FC<SignInScreenProps> = ({ navigation }) => {
+const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
   React.useEffect(() => {
     const checkToken = async () => {
       const token = await getToken();
@@ -30,10 +30,12 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ navigation }) => {
     checkToken();
   }, []);
 
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [nameError, setNameError] = useState('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   
@@ -61,37 +63,50 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ navigation }) => {
     return emailRegex.test(email);
   };
 
-  const signIn = async (email: string, password: string) => {
+  const signUp = async (name: string, email: string, password: string) => {
     try {
-      const response = await fetch(`${Constants.api}/api/auth/sign-in`, {
+      const response = await fetch(`${Constants.api}/api/auth/sign-up`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
+          name,
           email,
           password
         })
       });
 
-      if (response.status==401) {
-        setEmailError("Invalid Email or Password")
-        setPasswordError("Invalid Email or Password")
-        return
+      if (response.status === 409) {
+        setEmailError("Email already exists");
+        return;
       }
 
-      const token = await response.json();
-      storeToken(token)
-      navigation?.replace('Tabs');
+      if (!response.ok) {
+        throw new Error('Sign up failed');
+      }
+
+      navigation?.replace('SignIn');
     } catch (error) {
-      Alert.alert('Error', 'Failed to sign in.');
+      Alert.alert('Error', 'Failed to sign up.');
       throw error;
     }
   };
 
-  const handleSignIn = async () => {
+  const handleSignUp = async () => {
+    setNameError('');
     setEmailError('');
     setPasswordError('');
+
+    if (!name.trim()) {
+      setNameError('Name is required');
+      return;
+    }
+
+    if (name.trim().length < 2) {
+      setNameError('Name must be at least 2 characters');
+      return;
+    }
 
     if (!email) {
       setEmailError('Email is required');
@@ -116,16 +131,16 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ navigation }) => {
     setIsLoading(true);
     
     try {
-      await signIn(email, password)
+      await signUp(name.trim(), email, password);
     } catch (error) {
-      Alert.alert('Error', 'Sign in failed. Please try again.');
+      Alert.alert('Error', 'Sign up failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSignUp = () => {
-    navigation?.navigate('SignUp');
+  const handleSignIn = () => {
+    navigation?.navigate('SignIn');
   };
 
   return (
@@ -145,12 +160,37 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ navigation }) => {
         >
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Sign in to your account</Text>
+            <Text style={styles.title}>Create Account</Text>
+            <Text style={styles.subtitle}>Sign up to get started</Text>
           </View>
 
           {/* Form */}
           <View style={styles.form}>
+            {/* Name Input */}
+            <View style={styles.inputContainer}>
+              <View style={[styles.inputWrapper, nameError ? styles.inputError : null]}>
+                <Ionicons 
+                  name="person-outline" 
+                  size={20} 
+                  color="#9CA3AF" 
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Full Name"
+                  placeholderTextColor="#9CA3AF"
+                  value={name}
+                  onChangeText={(text) => {
+                    setName(text);
+                    if (nameError) setNameError('');
+                  }}
+                  autoCapitalize="words"
+                  autoComplete="name"
+                />
+              </View>
+              {nameError ? <Text style={styles.errorText}>{nameError}</Text> : null}
+            </View>
+
             {/* Email Input */}
             <View style={styles.inputContainer}>
               <View style={[styles.inputWrapper, emailError ? styles.inputError : null]}>
@@ -196,7 +236,7 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ navigation }) => {
                     if (passwordError) setPasswordError('');
                   }}
                   secureTextEntry={!showPassword}
-                  autoComplete="password"
+                  autoComplete="new-password"
                 />
                 <TouchableOpacity
                   style={styles.eyeIcon}
@@ -212,22 +252,22 @@ const SignInScreen: React.FC<SignInScreenProps> = ({ navigation }) => {
               {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
             </View>
 
-            {/* Sign In Button */}
+            {/* Sign Up Button */}
             <TouchableOpacity
-              style={[styles.signInButton, isLoading && styles.buttonDisabled]}
-              onPress={handleSignIn}
+              style={[styles.signUpButton, isLoading && styles.buttonDisabled]}
+              onPress={handleSignUp}
               disabled={isLoading}
             >
-              <Text style={styles.signInButtonText}>
-                {isLoading ? 'Signing In...' : 'Sign In'}
+              <Text style={styles.signUpButtonText}>
+                {isLoading ? 'Creating Account...' : 'Sign Up'}
               </Text>
             </TouchableOpacity>
 
-            {/* Sign Up Link */}
-            <View style={styles.signUpContainer}>
-              <Text style={styles.signUpText}>Don't have an account? </Text>
-              <TouchableOpacity onPress={handleSignUp}>
-                <Text style={styles.signUpLink}>Sign Up</Text>
+            {/* Sign In Link */}
+            <View style={styles.signInContainer}>
+              <Text style={styles.signInText}>Already have an account? </Text>
+              <TouchableOpacity onPress={handleSignIn}>
+                <Text style={styles.signInLink}>Sign In</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -303,12 +343,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginLeft: 4,
   },
-  forgotPasswordText: {
-    color: '#5C6AC4',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  signInButton: {
+  signUpButton: {
     backgroundColor: '#5C6AC4',
     borderRadius: 12,
     height: 56,
@@ -329,27 +364,27 @@ const styles = StyleSheet.create({
     shadowOpacity: 0,
     elevation: 0,
   },
-  signInButtonText: {
+  signUpButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
-  signUpContainer: {
+  signInContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 'auto',
     paddingBottom: 32,
   },
-  signUpText: {
+  signInText: {
     color: '#6B7280',
     fontSize: 14,
   },
-  signUpLink: {
+  signInLink: {
     color: '#5C6AC4',
     fontSize: 14,
     fontWeight: '600',
   },
 });
 
-export default SignInScreen;
+export default SignUpScreen;

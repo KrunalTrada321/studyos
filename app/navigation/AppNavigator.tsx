@@ -4,6 +4,7 @@ import AutomationDetailScreen from "../screens/AutomationDetailScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import SignInScreen from "../screens/SignInScreen"; // Import your SignIn screen
 import RootNavigator from "./RootNavigator";
+import SignUpScreen from "../screens/SignUpScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -14,6 +15,7 @@ export default function AppNavigator() {
       screenOptions={{ headerShown: false }}
     >
       <Stack.Screen name="SignIn" component={SignInScreen} />
+      <Stack.Screen name="SignUp" component={SignUpScreen} />
       <Stack.Screen name="Tabs" component={RootNavigator} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen

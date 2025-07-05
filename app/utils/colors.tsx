@@ -5,3 +5,5 @@ export const colors = {
       lightRed: '#FFDEDE',
       lightPrimary: '#DDE1FF'
 }
+
+export default colors

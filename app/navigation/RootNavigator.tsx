@@ -62,6 +62,7 @@ import RecordScreen from '../screens/RecordScreen';
 import ToDoScreen from '../screens/ToDoScreen';
 import { colors } from '../utils/colors';
 import ScreenWrapper from './ScreenWrapper';
+import { getToken } from '../utils/token';
 
 const Tab = createBottomTabNavigator();
 
@@ -79,7 +80,16 @@ function CustomTabBarButton({ children, onPress }) {
   );
 }
 
-export default function RootNavigator() {
+export default function RootNavigator({ navigation }) {
+  React.useEffect(() => {
+    const checkToken = async () => {
+      const token = await getToken();
+      if (!token) {
+        navigation?.replace('SignIn');
+      }
+    };
+    checkToken();
+  }, []);
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({

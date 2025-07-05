@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { deleteToken } from '../utils/token';
 
 export default function ProfileScreen() {
 
@@ -56,7 +57,13 @@ return (
       </TouchableOpacity>
 
       {/* Sign Out */}
-      <TouchableOpacity style={styles.signOutButton}>
+      <TouchableOpacity
+        style={styles.signOutButton}
+        onPress={() => {
+          deleteToken()
+            navigation.navigate('SignIn');
+        }}
+      >
         <Text style={styles.signOutText}>Sign out</Text>
       </TouchableOpacity>
     </SafeAreaView>

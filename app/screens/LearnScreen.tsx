@@ -159,8 +159,7 @@ export default function LearnScreen() {
                     )}
                     <Text
                       style={styles.lessonTitle}
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
+                      numberOfLines={2}
                     >
                       {lesson.title}
                     </Text>
@@ -172,9 +171,18 @@ export default function LearnScreen() {
                 </View>
                 {!lesson.completed && (
 
-                  <TouchableOpacity style={styles.startButton}   onPress={() => navigation.navigate('LessonStart', { lesson })}>
-                    <Text style={styles.startButtonText}>Start</Text>
+                  <TouchableOpacity
+                    style={styles.startButton}
+                    onPress={() =>
+                      navigation.navigate("LessonStart", {
+                        lessonId: lesson.id,
+                        totalQuestions: lesson.questions, // ✅ Pass this
+                      }) 
+                    }
+                  >
+                    <Text style={{color: colors.white, fontWeight: "500"}}>Start</Text>
                   </TouchableOpacity>
+
 
                 )}
               </View>
@@ -305,8 +313,8 @@ const styles = StyleSheet.create({
 
   startButton: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 10,
     marginLeft: 10,
     elevation: 2,

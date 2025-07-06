@@ -1,10 +1,11 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React from "react";
 import AutomationDetailScreen from "../screens/AutomationDetailScreen";
+import LessonStart from "../screens/LessonStart";
 import ProfileScreen from "../screens/ProfileScreen";
 import SignInScreen from "../screens/SignInScreen"; // Import your SignIn screen
-import RootNavigator from "./RootNavigator";
 import SignUpScreen from "../screens/SignUpScreen";
+import RootNavigator from "./RootNavigator";
 
 const Stack = createNativeStackNavigator();
 
@@ -22,6 +23,11 @@ export default function AppNavigator() {
         name="AutomationDetail"
         component={AutomationDetailScreen}
       />
+       <Stack.Screen
+        name="LessonStart"  
+        component={LessonStart}
+      />
+      
     </Stack.Navigator>
   );
 }

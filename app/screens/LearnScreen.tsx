@@ -3,6 +3,7 @@ import {
   MaterialCommunityIcons,
   MaterialIcons,
 } from "@expo/vector-icons";
+import { useNavigation } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   Image,
@@ -54,6 +55,7 @@ export default function LearnScreen() {
   const [tab, setTab] = useState("Plan");
   const [lessons, setLessons] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigation = useNavigation();
 
   useEffect(() => {
     const fetchLessons = async () => {
@@ -64,6 +66,7 @@ export default function LearnScreen() {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
+        console.log(data)
         setLessons(data);
       } catch (e) {
         setLessons([]);
@@ -119,6 +122,7 @@ export default function LearnScreen() {
       </View>
 
       {tab === "Plan" ? (
+
         <ScrollView style={{ flex: 1 }}>
           <Text style={styles.sectionTitle}>Today</Text>
           {loading ? (
@@ -167,14 +171,18 @@ export default function LearnScreen() {
                   </Text>
                 </View>
                 {!lesson.completed && (
-                  <TouchableOpacity style={styles.startButton}>
+
+                  <TouchableOpacity style={styles.startButton}   onPress={() => navigation.navigate('LessonStart', { lesson })}>
                     <Text style={styles.startButtonText}>Start</Text>
                   </TouchableOpacity>
+
                 )}
               </View>
             ))
           )}
         </ScrollView>
+
+
       ) : (
         <ScrollView style={styles.subjectsContainer}>
           <View style={styles.grid}>

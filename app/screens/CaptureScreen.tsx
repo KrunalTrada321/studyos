@@ -2,6 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Camera, CameraView } from 'expo-camera';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Dimensions,
   StyleSheet,
   Text,
@@ -9,6 +10,8 @@ import {
   View,
 } from 'react-native';
 import { colors } from '../utils/colors';
+import Constants from '../utils/constants';
+import { getToken } from '../utils/token';
 
 const { width } = Dimensions.get('window');
 
@@ -16,6 +19,7 @@ const CaptureScreen = () => {
   const [mode, setMode] = useState('record'); // 'record' or 'scan'
   const [isRecording, setIsRecording] = useState(false);
   const [hasPermission, setHasPermission] = useState(null);
+  const [loading, setLoading] = useState(false);
   const cameraRef = useRef(null);
 
   useEffect(() => {
@@ -67,12 +71,79 @@ const CaptureScreen = () => {
         ) : hasPermission === false ? (
           <Text>No access to camera</Text>
         ) : (
-          <CameraView
-            ref={cameraRef}
-            style={styles.cameraPreview}
-          // type={Camera.Constants.Type.back}
-          />
+
+          <View>
+
+            <CameraView
+              ref={cameraRef}
+              style={styles.cameraPreview}
+            // type={Camera.Constants.Type.back}
+            />
+
+            <TouchableOpacity
+              onPress={async () => {
+                if (!cameraRef.current) return;
+
+                setLoading(true);
+
+                try {
+                  const photo = await cameraRef.current.takePictureAsync({
+                    quality: 0.8,
+                    skipProcessing: true,
+                  });
+
+                  const formData = new FormData();
+                  formData.append('files', {
+                    uri: photo.uri,
+                    name: 'scan.jpg',
+                    type: 'image/jpeg',
+                  });
+
+                  const token = await getToken();
+
+                  const response = await fetch(`${Constants.api}/api/ai/scan-notes`, {
+                    method: 'POST',
+                    headers: {  
+                      'Content-Type': 'multipart/form-data',
+                      Authorization: `Bearer ${token}`,
+                    },
+                    body: formData,
+                  });
+
+                  const data = await response.json();
+                  console.log('Scan Response:', data);
+                  alert(data.message || 'Scan complete!');
+                } catch (err) {
+                  console.error(err);
+                  alert('Failed to capture or upload image.');
+                }
+
+                setLoading(false);
+              }}
+              style={{
+                backgroundColor: colors.primary,
+                marginTop: 12,
+                padding: 14,
+                borderRadius: 8,
+                width: 180,
+                alignSelf: 'center',
+                alignItems: 'center',
+              }}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={{ textAlign: 'center', color: colors.white, fontWeight: '700' }}>
+                  Capture
+                </Text>
+              )}
+            </TouchableOpacity>
+
+
+          </View>
+
         )}
+
       </View>
 
 
@@ -83,7 +154,7 @@ const CaptureScreen = () => {
         </TouchableOpacity>
         <TouchableOpacity style={[styles.bottomBtn, styles.activeBtn]}>
           <Text style={styles.activeBtnText}>New</Text>
-        </TouchableOpacity> 
+        </TouchableOpacity>
       </View>)}
 
 

@@ -17,6 +17,7 @@ export default function ScreenWrapper({ Component }) {
         <TouchableOpacity onPress={() => setShowLeftDrawer(true)}>
           <Ionicons name="menu" size={28} />
         </TouchableOpacity>
+        
         <TouchableOpacity onPress={() => setShowRightDrawer(true)}>
           <Ionicons name="settings-outline" size={24} />
         </TouchableOpacity>

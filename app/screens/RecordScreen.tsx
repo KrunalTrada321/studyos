@@ -2,24 +2,37 @@ import { FontAwesome } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
   Dimensions,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { colors } from '../utils/colors';
+import Constants from '../utils/constants';
+import { getToken } from '../utils/token';
 
 const { width } = Dimensions.get('window');
 
 const RecordScreen = () => {
   const [recordingTime, setRecordingTime] = useState(0);
+  const [mode, setMode] = useState<'voice' | 'text'>('voice');
+
+  const [message, setMessage] = useState('');
+  const [chatHistory, setChatHistory] = useState<{ role: string; message: string }[]>([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setRecordingTime((prev) => prev + 1);
+      if (mode === 'voice') {
+        setRecordingTime((prev) => prev + 1);
+      }
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [mode]);
 
   const formatTime = (seconds: number) => {
     const mins = String(Math.floor(seconds / 60)).padStart(2, '0');
@@ -47,35 +60,139 @@ const RecordScreen = () => {
     });
   };
 
+  const sendMessage = async () => {
+    if (!message.trim()) return;
+
+    const newHistory = [...chatHistory, { role: 'user', message }];
+    setChatHistory(newHistory);
+    setMessage('');
+    setLoading(true);
+
+    try {
+      const token = await getToken();
+    
+      // const res = await fetch(`${Constants.api}/api/ai/chat`, {
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     Authorization: `Bearer ${token}`,
+      //   },
+      //   body: JSON.stringify({
+      //     message : message,
+      //     history: newHistory,
+      //   }),
+      // });
+
+      const res = await fetch(`${Constants.api}/api/ai/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          message: "Give me an example of Python class",
+          history: [
+            { role: "user", message: "Hi, my name is Addy" },
+            { role: "model", message: "Hi, how can I help you?" }
+          ],
+        }),
+      });
+ 
+      const data = await res.json();
+      console.log('AI API Response:', data);
+
+      if (data?.message) {
+        setChatHistory((prev) => [...prev, { role: 'model', message: data.message }]);
+      } else {
+        setChatHistory((prev) => [...prev, { role: 'model', message: '❌ No response received.' }]);
+      }
+    } catch (err) {
+      setChatHistory((prev) => [...prev, { role: 'model', message: '❌ Error getting response.' }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>AI Tutor</Text>
 
-      <View style={styles.micButton}>
-       
-        <View style={{padding: 10, backgroundColor: colors.lightPrimary, borderRadius: 50, height: 70, width: 70, alignItems: 'center', justifyContent: 'center'}}>
-        <FontAwesome name="microphone" size={48} color="white" />
+      {mode === 'voice' ? (
+        <View style={{flex:1, alignItems: 'center'}}>
+          <View style={styles.micButton}>
+            <View
+              style={{
+                padding: 10,
+                backgroundColor: colors.lightPrimary,
+                borderRadius: 50,
+                height: 70,
+                width: 70,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <FontAwesome name="microphone" size={48} color="white" />
+            </View>
+          </View>
+          <Text style={styles.timer}>{formatTime(recordingTime)}</Text>
+          <View style={styles.waveformContainer}>
+            <View style={styles.waveform}>{renderWaveform()}</View>
+          </View>
+          <Text style={styles.statusText}>Speaking...</Text>
         </View>
-      
-      </View>
+      ) : (
+        <KeyboardAvoidingView
+          style={{ flex: 1, width: '100%' }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <ScrollView
+            style={styles.chatBox}
+            contentContainerStyle={{ paddingBottom: 20 }}
+          >
+            {chatHistory.map((msg, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.messageBubble,
+                  msg.role === 'user' ? styles.userBubble : styles.modelBubble,
+                ]}
+              >
+                <Text style={msg.role === 'user' ? styles.userText : styles.modelText}>
+                  {msg.message}
+                </Text>
+              </View>
+            ))}
+            {loading && (
+              <Text style={{ textAlign: 'center', marginTop: 10 }}>Typing...</Text>
+            )}
+          </ScrollView>
 
-      <Text style={styles.timer}>{formatTime(recordingTime)}</Text>
-
-      <View style={styles.waveformContainer}>
-        <View style={styles.waveform}>
-          {renderWaveform()}
-          <View style={styles.waveformCursor} />
-        </View>
-      </View>
-
-      <Text style={styles.statusText}>Speaking...</Text>
+          <View style={styles.inputBar}>
+            <TextInput
+              value={message}
+              onChangeText={setMessage}
+              placeholder="Type your message..."
+              style={styles.input}
+            />
+            <TouchableOpacity onPress={sendMessage} style={styles.sendButton}>
+              <Text style={{ color: '#fff' }}>Send</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      )}
 
       <View style={styles.switchContainer}>
-        <TouchableOpacity style={styles.activeSwitch}>
-          <Text style={styles.activeText}>🎙️ Voice</Text>
+        <TouchableOpacity
+          style={mode === 'voice' ? styles.activeSwitch : styles.inactiveSwitch}
+          onPress={() => setMode('voice')}
+        >
+          <Text style={mode === 'voice' ? styles.activeText : styles.inactiveText}>🎙️ Voice</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.inactiveSwitch}>
-          <Text style={styles.inactiveText}>📝 Text</Text>
+        <TouchableOpacity
+          style={mode === 'text' ? styles.activeSwitch : styles.inactiveSwitch}
+          onPress={() => setMode('text')}
+        >
+          <Text style={mode === 'text' ? styles.activeText : styles.inactiveText}>📝 Text</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -87,7 +204,7 @@ export default RecordScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 80,
+    paddingTop: 20,
     alignItems: 'center',
     backgroundColor: '#fff',
   },
@@ -125,25 +242,25 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     position: 'relative',
   },
-  waveformCursor: {
-    position: 'absolute',
-    width: 2,
-    height: 60,
-    backgroundColor: 'black',
-    left: '50%',
-    top: 10,
-    borderRadius: 1,
-  },
   statusText: {
     fontSize: 16,
     marginBottom: 30,
   },
   switchContainer: {
+    
     flexDirection: 'row',
     gap: 10,
+    marginTop: 10,
+    marginBottom: 20
   },
   activeSwitch: {
-    backgroundColor:  colors.primary,
+    backgroundColor: colors.primary,
+    paddingVertical: 15,
+    paddingHorizontal: 50,
+    borderRadius: 10,
+  },
+  inactiveSwitch: {
+    backgroundColor: '#ddd',
     paddingVertical: 15,
     paddingHorizontal: 50,
     borderRadius: 10,
@@ -152,14 +269,56 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
   },
-  inactiveSwitch: {
-    backgroundColor: '#ddd',
-    paddingVertical: 15,
-    paddingHorizontal: 50,
-    borderRadius: 10,
-  },
   inactiveText: {
     color: '#555',
     fontWeight: 'bold',
+  },
+  chatBox: {
+    flex: 1,
+    paddingHorizontal: 20,
+    width: '100%',
+  },
+  messageBubble: {
+    padding: 10,
+    marginVertical: 5,
+    borderRadius: 8,
+    maxWidth: '80%',
+  },
+  userBubble: {
+    backgroundColor: '#DCF8C6',
+    alignSelf: 'flex-end',
+  },
+  modelBubble: {
+    backgroundColor: '#EEE',
+    alignSelf: 'flex-start',
+  },
+  userText: {
+    color: '#000',
+  },
+  modelText: {
+    color: '#000',
+  },
+  inputBar: {
+    flexDirection: 'row',
+    padding: 10,
+    borderTopWidth: 1,
+    borderColor: '#ccc',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  input: {
+    flex: 1,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    paddingHorizontal: 15,
+    marginRight: 10,
+    borderColor: '#ccc',
+  },
+  sendButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
   },
 });

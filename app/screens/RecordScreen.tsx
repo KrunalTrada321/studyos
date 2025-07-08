@@ -1,5 +1,5 @@
 import { FontAwesome } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Dimensions,
   KeyboardAvoidingView,
@@ -20,6 +20,8 @@ const { width } = Dimensions.get('window');
 const RecordScreen = () => {
   const [recordingTime, setRecordingTime] = useState(0);
   const [mode, setMode] = useState<'voice' | 'text'>('voice');
+  const botMessageRef = useRef('');
+
 
   const [message, setMessage] = useState('');
   const [chatHistory, setChatHistory] = useState<{ role: string; message: string }[]>([]);
@@ -60,60 +62,74 @@ const RecordScreen = () => {
     });
   };
 
+
   const sendMessage = async () => {
     if (!message.trim()) return;
-
+  
     const newHistory = [...chatHistory, { role: 'user', message }];
     setChatHistory(newHistory);
     setMessage('');
     setLoading(true);
-
+  
+    botMessageRef.current = ''; // reset
+  
     try {
       const token = await getToken();
-    
-      // const res = await fetch(`${Constants.api}/api/ai/chat`, {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     Authorization: `Bearer ${token}`,
-      //   },
-      //   body: JSON.stringify({
-      //     message : message,
-      //     history: newHistory,
-      //   }),
-      // });
-
-      const res = await fetch(`${Constants.api}/api/ai/chat`, {
+  
+      const response = await fetch(`${Constants.api}/api/ai/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          message: "Give me an example of Python class",
-          history: [
-            { role: "user", message: "Hi, my name is Addy" },
-            { role: "model", message: "Hi, how can I help you?" }
-          ],
+          message,
+          history: newHistory,
         }),
       });
- 
-      const data = await res.json();
-      console.log('AI API Response:', data);
-
-      if (data?.message) {
-        setChatHistory((prev) => [...prev, { role: 'model', message: data.message }]);
-      } else {
-        setChatHistory((prev) => [...prev, { role: 'model', message: '❌ No response received.' }]);
+  
+      const textResponse = await response.text();
+  
+      // Get last message from streamed lines
+      const lines = textResponse
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.startsWith('data: ') && line !== 'data: [DONE]');
+  
+      // ✅ Get last valid JSON line only
+      const lastLine = lines[lines.length - 1];
+      if (lastLine) {
+        const jsonString = lastLine.replace(/^data:\s*/, '');
+        const parsed = JSON.parse(jsonString);
+        botMessageRef.current = parsed?.message || '';
       }
+  
+      setChatHistory((prev) => [
+        ...prev,
+        { role: 'model', message: botMessageRef.current || '⚠️ No response.' },
+      ]);
     } catch (err) {
-      setChatHistory((prev) => [...prev, { role: 'model', message: '❌ Error getting response.' }]);
+      console.error('Streaming fallback error:', err);
+      setChatHistory((prev) => [
+        ...prev,
+        { role: 'model', message: '❌ Error getting response.' },
+      ]);
     } finally {
       setLoading(false);
     }
   };
+  
+
+
+  
+
 
   return (
+    <KeyboardAvoidingView
+    style={{ flex: 1, paddingBottom: 20 }}
+    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0} // Adjust if needed
+  >
     <View style={styles.container}>
       <Text style={styles.title}>AI Tutor</Text>
 
@@ -196,6 +212,7 @@ const RecordScreen = () => {
         </TouchableOpacity>
       </View>
     </View>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -309,7 +326,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     height: 40,
-    borderRadius: 20,
+    borderRadius: 12,
     borderWidth: 1,
     paddingHorizontal: 15,
     marginRight: 10,
@@ -319,6 +336,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     paddingVertical: 10,
     paddingHorizontal: 20,
-    borderRadius: 20,
+    borderRadius: 12,
   },
 });

@@ -1,6 +1,6 @@
 import { validateFreeText } from "@/app/utils/answerValidation"
 import { useState } from "react"
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from "react-native"
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal, ActivityIndicator } from "react-native"
 
 interface FreeTextRendererProps {
   question: any
@@ -13,6 +13,7 @@ export function FreeTextRenderer({ question, showAnswer, onAnswer }: FreeTextRen
   const [isAnswered, setIsAnswered] = useState(false)
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null)
   const [isValidating, setIsValidating] = useState(false)
+  const [showFullScreenInput, setShowFullScreenInput] = useState(false)
 
   const getQuestionTitle = () => {
     return question.question || question.statement || question.title || question.description || "Question"
@@ -20,13 +21,13 @@ export function FreeTextRenderer({ question, showAnswer, onAnswer }: FreeTextRen
 
   const onSubmit = async () => {
     setIsValidating(true)
+    setShowFullScreenInput(false)
     try {
       const correct = await validateFreeText(question.question, inputValue)
       setIsCorrect(correct)
       setIsAnswered(true)
     } catch (error) {
-      console.error('Validation error:', error)
-      // You might want to show an error message to the user here
+      console.error("Validation error:", error)
     } finally {
       setIsValidating(false)
     }
@@ -45,134 +46,137 @@ export function FreeTextRenderer({ question, showAnswer, onAnswer }: FreeTextRen
     setIsValidating(false)
   }
 
+  const openFullScreenInput = () => {
+    setShowFullScreenInput(true)
+  }
+
+  const closeFullScreenInput = () => {
+    setShowFullScreenInput(false)
+  }
+
   return (
-    <KeyboardAvoidingView 
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
-    >
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+    <View style={styles.container}>
+      <Text style={styles.questionTitle}>{getQuestionTitle()}</Text>
+
+      {question.hint && (
+        <View style={styles.hintContainer}>
+          <View style={styles.hintHeader}>
+            <Text style={styles.hintIcon}>💡</Text>
+            <Text style={styles.hintLabel}>Hint</Text>
+          </View>
+          <Text style={styles.hintText}>{question.hint}</Text>
+        </View>
+      )}
+
+      {/* Answer Input Area */}
+      <TouchableOpacity
+        style={[
+          styles.answerInputArea,
+          (showAnswer || isAnswered) && styles.disabledInput,
+          isAnswered && isCorrect && styles.correctInput,
+          isAnswered && !isCorrect && styles.incorrectInput,
+        ]}
+        onPress={openFullScreenInput}
+        disabled={showAnswer || isAnswered || isValidating}
       >
-        <Text style={styles.questionTitle}>{getQuestionTitle()}</Text>
+        <Text style={[styles.answerText, !inputValue.trim() && styles.placeholderText]}>
+          {inputValue.trim() || "Tap to write your answer..."}
+        </Text>
+      </TouchableOpacity>
 
-        {question.hint && (
-          <View style={styles.hintContainer}>
-            <View style={styles.hintHeader}>
-              <Text style={styles.hintIcon}>💡</Text>
-              <Text style={styles.hintLabel}>Hint</Text>
-            </View>
-            <Text style={styles.hintText}>{question.hint}</Text>
-          </View>
-        )}
+      {/* Loading indicator while validating */}
+      {isValidating && (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color="#3B82F6" />
+          <Text style={styles.loadingText}>Checking your answer...</Text>
+        </View>
+      )}
 
-        <TextInput
-          style={[
-            styles.textInput,
-            (showAnswer || isAnswered) && styles.disabledInput,
-            isAnswered && isCorrect && styles.correctInput,
-            isAnswered && !isCorrect && styles.incorrectInput,
-          ]}
-          placeholder="Type your answer here..."
-          value={inputValue}
-          onChangeText={setInputValue}
-          multiline={true}
-          numberOfLines={6}
-          textAlignVertical="top"
-          editable={!showAnswer && !isAnswered && !isValidating}
-        />
-
-        {/* Loading indicator while validating */}
-        {isValidating && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color="#3B82F6" />
-            <Text style={styles.loadingText}>Checking your answer...</Text>
-          </View>
-        )}
-
-        {/* Show feedback after answering */}
-        {isAnswered && (
-          <View style={[
-            styles.feedbackContainer,
-            isCorrect ? styles.correctFeedback : styles.incorrectFeedback
-          ]}>
-            <View style={styles.feedbackHeader}>
-              <Text style={styles.feedbackIcon}>
-                {isCorrect ? "✅" : "❌"}
-              </Text>
-              <Text style={[
-                styles.feedbackTitle,
-                isCorrect ? styles.correctText : styles.incorrectText
-              ]}>
-                {isCorrect ? "Correct!" : "Incorrect"}
-              </Text>
-            </View>
-            <Text style={styles.feedbackMessage}>
-              {isCorrect 
-                ? "Great job! Your answer is correct." 
-                : "Your answer is not quite right. You can try again or continue to see the correct answer."
-              }
+      {/* Show feedback after answering */}
+      {isAnswered && (
+        <View style={[styles.feedbackContainer, isCorrect ? styles.correctFeedback : styles.incorrectFeedback]}>
+          <View style={styles.feedbackHeader}>
+            <Text style={styles.feedbackIcon}>{isCorrect ? "✅" : "❌"}</Text>
+            <Text style={[styles.feedbackTitle, isCorrect ? styles.correctText : styles.incorrectText]}>
+              {isCorrect ? "Correct!" : "Incorrect"}
             </Text>
           </View>
-        )}
+          <Text style={styles.feedbackMessage}>
+            {isCorrect
+              ? "Great job! Your answer is correct."
+              : "Your answer is not quite right. You can try again or continue to see the correct answer."}
+          </Text>
+        </View>
+      )}
 
-        {/* Submit button - only show when not answered */}
-        {!showAnswer && !isAnswered && (
-          <TouchableOpacity
-            style={[
-              styles.submitButton, 
-              (!inputValue.trim() || isValidating) && styles.disabledButton
-            ]}
-            onPress={() => onSubmit()}
-            disabled={!inputValue.trim() || isValidating}
-          >
-            {isValidating ? (
-              <View style={styles.submitButtonContent}>
-                <ActivityIndicator size="small" color="white" />
-                <Text style={styles.submitButtonText}>Checking...</Text>
-              </View>
-            ) : (
-              <Text style={styles.submitButtonText}>Submit Answer</Text>
-            )}
+      {/* Submit button - only show when not answered */}
+      {!showAnswer && !isAnswered && (
+        <TouchableOpacity
+          style={[styles.submitButton, (!inputValue.trim() || isValidating) && styles.disabledButton]}
+          onPress={onSubmit}
+          disabled={!inputValue.trim() || isValidating}
+        >
+          {isValidating ? (
+            <View style={styles.submitButtonContent}>
+              <ActivityIndicator size="small" color="white" />
+              <Text style={styles.submitButtonText}>Checking...</Text>
+            </View>
+          ) : (
+            <Text style={styles.submitButtonText}>Submit Answer</Text>
+          )}
+        </TouchableOpacity>
+      )}
+
+      {/* Action buttons after answering */}
+      {isAnswered && !showAnswer && (
+        <View style={styles.actionButtons}>
+          {!isCorrect && (
+            <TouchableOpacity style={styles.tryAgainButton} onPress={resetAnswer}>
+              <Text style={styles.tryAgainButtonText}>Try Again</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={styles.continueButton} onPress={onContinue}>
+            <Text style={styles.continueButtonText}>Continue</Text>
           </TouchableOpacity>
-        )}
+        </View>
+      )}
 
-        {/* Action buttons after answering */}
-        {isAnswered && !showAnswer && (
-          <View style={styles.actionButtons}>
-            {!isCorrect && (
-              <TouchableOpacity
-                style={styles.tryAgainButton}
-                onPress={resetAnswer}
-              >
-                <Text style={styles.tryAgainButtonText}>Try Again</Text>
-              </TouchableOpacity>
-            )}
+      {/* Full Screen Input Modal */}
+      <Modal visible={showFullScreenInput} animationType="slide" presentationStyle="fullScreen">
+        <View style={styles.fullScreenContainer}>
+          <View style={styles.fullScreenHeader}>
+            <TouchableOpacity onPress={closeFullScreenInput}>
+              <Text style={styles.cancelButton}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.fullScreenTitle}>Write Your Answer</Text>
             <TouchableOpacity
-              style={styles.continueButton}
-              onPress={onContinue}
+              onPress={() => {
+                setShowFullScreenInput(false)
+              }}
+              disabled={!inputValue.trim()}
             >
-              <Text style={styles.continueButtonText}>Continue</Text>
+              <Text style={[styles.doneButton, !inputValue.trim() && styles.disabledDoneButton]}>Done</Text>
             </TouchableOpacity>
           </View>
-        )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+          <TextInput
+            style={styles.fullScreenTextInput}
+            placeholder="Type your answer here..."
+            value={inputValue}
+            onChangeText={setInputValue}
+            multiline={true}
+            textAlignVertical="top"
+            autoFocus={true}
+          />
+        </View>
+      </Modal>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
     padding: 16,
   },
   questionTitle: {
@@ -209,19 +213,25 @@ const styles = StyleSheet.create({
     color: "#92400E",
     lineHeight: 20,
   },
-  textInput: {
+  answerInputArea: {
     borderWidth: 1,
     borderColor: "#D1D5DB",
     borderRadius: 12,
     padding: 16,
-    fontSize: 16,
     backgroundColor: "white",
     minHeight: 120,
-    maxHeight: 200,
+    justifyContent: "flex-start",
+  },
+  answerText: {
+    fontSize: 16,
+    color: "#1E293B",
+    lineHeight: 22,
+  },
+  placeholderText: {
+    color: "#9CA3AF",
   },
   disabledInput: {
     backgroundColor: "#F9FAFB",
-    color: "#6B7280",
   },
   correctInput: {
     borderColor: "#10B981",
@@ -331,5 +341,43 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "600",
+  },
+  // Full Screen Modal Styles
+  fullScreenContainer: {
+    flex: 1,
+    backgroundColor: "white",
+  },
+  fullScreenHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  cancelButton: {
+    fontSize: 16,
+    color: "#6B7280",
+  },
+  fullScreenTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#1E293B",
+  },
+  doneButton: {
+    fontSize: 16,
+    color: "#3B82F6",
+    fontWeight: "600",
+  },
+  disabledDoneButton: {
+    color: "#9CA3AF",
+  },
+  fullScreenTextInput: {
+    flex: 1,
+    padding: 16,
+    fontSize: 16,
+    textAlignVertical: "top",
+    lineHeight: 22,
   },
 })

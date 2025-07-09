@@ -1,10 +1,10 @@
-import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
-import { Modal, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from "@expo/vector-icons";
+import React, { useState } from "react";
+import { Modal, StyleSheet, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import CustomLeftDrawer from '../components/CustomLeftDrawer';
-import CustomRightDrawer from '../components/CustomRightDrawer';
+import CustomLeftDrawer from "../components/CustomLeftDrawer";
+import SettingsScreen from "../components/CustomRightDrawer";
 
 export default function ScreenWrapper({ Component }) {
   const [showLeftDrawer, setShowLeftDrawer] = useState(false);
@@ -17,7 +17,7 @@ export default function ScreenWrapper({ Component }) {
         <TouchableOpacity onPress={() => setShowLeftDrawer(true)}>
           <Ionicons name="menu" size={28} />
         </TouchableOpacity>
-        
+
         <TouchableOpacity onPress={() => setShowRightDrawer(true)}>
           <Ionicons name="settings-outline" size={24} />
         </TouchableOpacity>
@@ -32,23 +32,23 @@ export default function ScreenWrapper({ Component }) {
       <Modal visible={showLeftDrawer} animationType="fade" transparent>
         <CustomLeftDrawer onClose={() => setShowLeftDrawer(false)} />
       </Modal>
- 
+
       {/* Right Drawer Modal */}
       <Modal visible={showRightDrawer} animationType="fade" transparent>
-        <CustomRightDrawer onClose={() => setShowRightDrawer(false)} />
+        <SettingsScreen onClose={() => setShowRightDrawer(false)} />
       </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#fff' },
+  safeArea: { flex: 1, backgroundColor: "#fff" },
   header: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    borderBottomColor: '#eee',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    borderBottomColor: "#eee",
     borderBottomWidth: 1,
   },
   content: {

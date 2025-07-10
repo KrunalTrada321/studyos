@@ -3,56 +3,22 @@ import {
   MaterialCommunityIcons,
   MaterialIcons,
 } from "@expo/vector-icons";
-import { useNavigation, useFocusEffect } from "expo-router";
-import React, { useEffect, useState, useCallback } from "react";
+import { useFocusEffect, useNavigation } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   Image,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  RefreshControl,
-  ActivityIndicator,
-  Alert,
 } from "react-native";
 import { colors } from "../utils/colors";
 import Constants from "../utils/constants";
 import { getToken } from "../utils/token";
-
-const subjects = [
-  { id: "1", name: "Math", lessons: 4, image: require("../assets/math.png") },
-  {
-    id: "2",
-    name: "Health",
-    lessons: 2,
-    image: require("../assets/health.png"),
-  },
-  {
-    id: "3",
-    name: "French",
-    lessons: 10,
-    image: require("../assets/french.png"),
-  },
-  {
-    id: "4",
-    name: "Science",
-    lessons: 4,
-    image: require("../assets/science.png"),
-  },
-  {
-    id: "5",
-    name: "Physics",
-    lessons: 4,
-    image: require("../assets/physics.png"),
-  },
-  {
-    id: "6",
-    name: "English",
-    lessons: 8,
-    image: require("../assets/english.png"),
-  },
-];
 
 export default function LearnScreen() {
   const [tab, setTab] = useState("Quiz");
@@ -62,33 +28,73 @@ export default function LearnScreen() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [subjects, setSubjects] = useState([]);
+  const [subjectsLoading, setSubjectsLoading] = useState(true);
+  const [subjectsRefreshing, setSubjectsRefreshing] = useState(false);
   const navigation = useNavigation();
 
   const ITEMS_PER_PAGE = 10;
 
-  // Helper function to format dates
+  const fetchSubjects = async () => {
+    try {
+      const authToken = await getToken();
+      const response = await fetch(`${Constants.api}/api/subjects`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setSubjects(data);
+      } else {
+        throw new Error(data.message || "Failed to fetch subjects");
+      }
+    } catch (error) {
+      console.error("Error fetching subjects:", error);
+      Alert.alert("Error", "Failed to load subjects. Please try again.");
+      setSubjects([]);
+    }
+  };
+
   const formatDate = (dateString: string | null): string | null => {
     if (!dateString) return null;
-    
+
     const date = new Date(dateString);
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    
+
     // Reset time to compare just dates
-    const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const yesterdayOnly = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
-    
+    const dateOnly = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate()
+    );
+    const todayOnly = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    );
+    const yesterdayOnly = new Date(
+      yesterday.getFullYear(),
+      yesterday.getMonth(),
+      yesterday.getDate()
+    );
+
     if (dateOnly.getTime() === todayOnly.getTime()) {
       return "Today";
     } else if (dateOnly.getTime() === yesterdayOnly.getTime()) {
       return "Yesterday";
     } else {
-      return date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year:
+          date.getFullYear() !== today.getFullYear() ? "numeric" : undefined,
       });
     }
   };
@@ -96,15 +102,15 @@ export default function LearnScreen() {
   // Group lessons by date
   const groupLessonsByDate = (lessons: any[]) => {
     const grouped = {};
-    
-    lessons.forEach(lesson => {
+
+    lessons.forEach((lesson) => {
       const dateKey = formatDate(lesson.created_at) || "No Date";
       if (!grouped[dateKey]) {
         grouped[dateKey] = [];
       }
       grouped[dateKey].push(lesson);
     });
-    
+
     // Sort groups by date (most recent first)
     const sortedGroups = Object.keys(grouped).sort((a, b) => {
       if (a === "Today") return -1;
@@ -115,10 +121,10 @@ export default function LearnScreen() {
       if (b === "No Date") return -1;
       return new Date(b) - new Date(a);
     });
-    
-    return sortedGroups.map(date => ({
+
+    return sortedGroups.map((date) => ({
       date,
-      lessons: grouped[date]
+      lessons: grouped[date],
     }));
   };
 
@@ -132,27 +138,27 @@ export default function LearnScreen() {
         }
       );
       const data = await res.json();
-      
+
       if (res.ok) {
         const newLessons = Array.isArray(data) ? data : data.lessons || [];
-        
+
         if (append) {
-          setLessons(prev => [...prev, ...newLessons]);
+          setLessons((prev) => [...prev, ...newLessons]);
         } else {
           setLessons(newLessons);
         }
-        
+
         // Check if there are more items
         setHasMore(newLessons.length === ITEMS_PER_PAGE);
       } else {
-        throw new Error(data.message || 'Failed to fetch lessons');
+        throw new Error(data.message || "Failed to fetch lessons");
       }
     } catch (error) {
-      console.error('Error fetching lessons:', error);
+      console.error("Error fetching lessons:", error);
       if (!append) {
         setLessons([]);
       }
-      Alert.alert('Error', 'Failed to load lessons. Please try again.');
+      Alert.alert("Error", "Failed to load lessons. Please try again.");
     }
   };
 
@@ -164,9 +170,15 @@ export default function LearnScreen() {
     setRefreshing(false);
   }, []);
 
+  const onSubjectsRefresh = useCallback(async () => {
+    setSubjectsRefreshing(true);
+    await fetchSubjects();
+    setSubjectsRefreshing(false);
+  }, []);
+
   const loadMoreLessons = async () => {
     if (loadingMore || !hasMore) return;
-    
+
     setLoadingMore(true);
     const nextPage = page + 1;
     setPage(nextPage);
@@ -177,8 +189,11 @@ export default function LearnScreen() {
   const handleScroll = ({ nativeEvent }: any) => {
     const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
     const paddingToBottom = 20;
-    
-    if (layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom) {
+
+    if (
+      layoutMeasurement.height + contentOffset.y >=
+      contentSize.height - paddingToBottom
+    ) {
       loadMoreLessons();
     }
   };
@@ -193,11 +208,22 @@ export default function LearnScreen() {
     initialLoad();
   }, []);
 
+  // Initial subjects load
+  useEffect(() => {
+    const initialSubjectsLoad = async () => {
+      setSubjectsLoading(true);
+      await fetchSubjects();
+      setSubjectsLoading(false);
+    };
+    initialSubjectsLoad();
+  }, []);
+
   // Refresh when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       onRefresh();
-    }, [onRefresh])
+      onSubjectsRefresh();
+    }, [onRefresh, onSubjectsRefresh])
   );
 
   const renderLessonCard = (lesson: any) => (
@@ -221,7 +247,7 @@ export default function LearnScreen() {
             {lesson.title}
           </Text>
         </View>
-        
+
         <View style={styles.lessonMeta}>
           <View style={styles.metaItem}>
             <MaterialIcons name="quiz" size={16} color="#6B7280" />
@@ -239,7 +265,7 @@ export default function LearnScreen() {
           )}
         </View>
       </View>
-      
+
       {!lesson.completed && (
         <TouchableOpacity
           style={styles.startButton}
@@ -254,7 +280,7 @@ export default function LearnScreen() {
           <Ionicons name="play" size={16} color="#fff" />
         </TouchableOpacity>
       )}
-      
+
       {lesson.completed && (
         <View style={styles.completedLabel}>
           <Text style={styles.completedText}>Completed</Text>
@@ -287,10 +313,27 @@ export default function LearnScreen() {
     </View>
   );
 
+  const renderSubjectsEmptyState = () => (
+    <View style={styles.emptyState}>
+      <MaterialIcons name="school" size={64} color="#D1D5DB" />
+      <Text style={styles.emptyTitle}>No subjects available</Text>
+      <Text style={styles.emptySubtitle}>
+        Check back later for new subjects
+      </Text>
+    </View>
+  );
+
   const renderLoadingState = () => (
     <View style={styles.loadingState}>
       <ActivityIndicator size="large" color={colors.primary} />
       <Text style={styles.loadingText}>Loading lessons...</Text>
+    </View>
+  );
+
+  const renderSubjectsLoadingState = () => (
+    <View style={styles.loadingState}>
+      <ActivityIndicator size="large" color={colors.primary} />
+      <Text style={styles.loadingText}>Loading subjects...</Text>
     </View>
   );
 
@@ -304,12 +347,14 @@ export default function LearnScreen() {
           style={[styles.tab, tab === "Quiz" && styles.activeTab]}
           onPress={() => setTab("Quiz")}
         >
-          <MaterialIcons 
-            name="quiz" 
-            size={20} 
-            color={tab === "Quiz" ? "#fff" : "#6B7280"} 
+          <MaterialIcons
+            name="quiz"
+            size={20}
+            color={tab === "Quiz" ? "#fff" : "#6B7280"}
           />
-          <Text style={[styles.tabText, tab === "Quiz" && styles.activeTabText]}>
+          <Text
+            style={[styles.tabText, tab === "Quiz" && styles.activeTabText]}
+          >
             Quiz
           </Text>
         </TouchableOpacity>
@@ -317,12 +362,14 @@ export default function LearnScreen() {
           style={[styles.tab, tab === "Subjects" && styles.activeTab]}
           onPress={() => setTab("Subjects")}
         >
-          <MaterialIcons 
-            name="school" 
-            size={20} 
-            color={tab === "Subjects" ? "#fff" : "#6B7280"} 
+          <MaterialIcons
+            name="school"
+            size={20}
+            color={tab === "Subjects" ? "#fff" : "#6B7280"}
           />
-          <Text style={[styles.tabText, tab === "Subjects" && styles.activeTabText]}>
+          <Text
+            style={[styles.tabText, tab === "Subjects" && styles.activeTabText]}
+          >
             All Subjects
           </Text>
         </TouchableOpacity>
@@ -360,21 +407,35 @@ export default function LearnScreen() {
           )}
         </ScrollView>
       ) : (
-        <ScrollView 
+        <ScrollView
           style={styles.subjectsContainer}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={subjectsRefreshing}
+              onRefresh={onSubjectsRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
         >
-          <View style={styles.grid}>
-            {subjects.map((subject) => (
-              <TouchableOpacity key={subject.id} style={styles.subjectCard}>
-                <Image source={subject.image} style={styles.subjectImage} />
-                <Text style={styles.subjectTitle}>{subject.name}</Text>
-                <Text style={styles.subjectSubtitle}>
-                  {subject.lessons} Lessons
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {subjectsLoading ? (
+            renderSubjectsLoadingState()
+          ) : subjects.length === 0 ? (
+            renderSubjectsEmptyState()
+          ) : (
+            <View style={styles.grid}>
+              {subjects.map((subject) => (
+                <TouchableOpacity key={subject.id} style={styles.subjectCard}>
+                  <Image source={require("../assets/subject.png")} style={styles.subjectImage} />
+                  <Text style={styles.subjectTitle}>{subject.name}</Text>
+                  <Text style={styles.subjectSubtitle}>
+                    {subject.lessons} Lessons
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </ScrollView>
       )}
     </View>
@@ -441,7 +502,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#E8E8E8",
     borderRadius: 12,
     padding: 4,
-    marginTop: 20
+    marginTop: 20,
   },
   tab: {
     flex: 1,
@@ -616,7 +677,7 @@ const styles = StyleSheet.create({
   },
   subjectsContainer: {
     flex: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
   grid: {
     flexDirection: "row",

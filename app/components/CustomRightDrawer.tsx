@@ -1,34 +1,51 @@
+"use client";
+
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
-import React, { useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
+  GoogleSignin,
+  statusCodes,
+} from "@react-native-google-signin/google-signin";
+import { useEffect, useState } from "react";
+import {
+  Alert,
+  Animated,
+  Modal,
   ScrollView,
   StyleSheet,
   Switch,
   Text,
   TouchableOpacity,
   View,
-  Modal,
-  Alert,
 } from "react-native";
 import colors from "../utils/colors";
+import { getToken } from "../utils/token";
+import Constants from "../utils/constants";
 
-import {
-  GoogleSignin,
-  GoogleSigninButton,
-  statusCodes,
-} from '@react-native-google-signin/google-signin';
-
-const webClientId = '668482663649-2adcufrnk232m0g0n9qapu86gji3qhla.apps.googleusercontent.com';
+const webClientId =
+  "668482663649-2adcufrnk232m0g0n9qapu86gji3qhla.apps.googleusercontent.com";
 
 GoogleSignin.configure({
   webClientId: webClientId,
-  scopes: ['https://www.googleapis.com/auth/drive.readonly'],
+  scopes: [
+    "https://www.googleapis.com/auth/classroom.courses.readonly",
+    "https://www.googleapis.com/auth/classroom.coursework.me.readonly",
+  ],
   offlineAccess: true,
-  forceCodeForRefreshToken: false,
+  forceCodeForRefreshToken: true,
 });
 
 interface Props {
   onClose: () => void;
+}
+
+interface Connection {
+  id: number;
+  name: string;
+  url: string;
+  connected: boolean;
+  type: string;
+  lastSync?: string; // For API-fetched connections
 }
 
 export default function SettingsScreen({ onClose }: Props) {
@@ -36,63 +53,339 @@ export default function SettingsScreen({ onClose }: Props) {
   const [learningReminders, setLearningReminders] = useState(true);
   const [assignmentAlerts, setAssignmentAlerts] = useState(false);
   const [showConnectionModal, setShowConnectionModal] = useState(false);
-  const [connections, setConnections] = useState([
-    {
-      id: 1,
-      name: "Canvas LMS",
-      url: "canvas.instructure.com",
-      synced: "2 hours ago",
-      connected: true,
-    },
-    {
-      id: 2,
-      name: "Google Class Room",
-      url: "canvas.instructure.com",
-      synced: "2 hours ago",
-      connected: true,
-    },
-    {
-      id: 3,
-      name: "Blackboard",
-      url: "canvas.instructure.com",
-      synced: "2 hours ago",
-      connected: true,
-    },
-  ]);
+  const [isGoogleSignedIn, setIsGoogleSignedIn] = useState(false);
+  const [connections, setConnections] = useState<Connection[]>([]);
+  const [googleClassroomSyncTime, setGoogleClassroomSyncTime] =
+    useState<Date | null>(null);
+  const [isGoogleClassroomSyncing, setIsGoogleClassroomSyncing] =
+    useState(false);
+  const [spinValue] = useState(new Animated.Value(0));
+
+  // Add this useEffect to handle the spinning animation
+  useEffect(() => {
+    if (isGoogleClassroomSyncing) {
+      const spinAnimation = Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        })
+      );
+      spinAnimation.start();
+      return () => spinAnimation.stop();
+    }
+  }, [isGoogleClassroomSyncing, spinValue]);
+
+  const spin = spinValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
+
+  // Load Google Classroom sync time from AsyncStorage
+  const loadGoogleClassroomSyncTime = async () => {
+    try {
+      const syncTimeString = await AsyncStorage.getItem(
+        "googleClassroomLastSync"
+      );
+      if (syncTimeString) {
+        setGoogleClassroomSyncTime(new Date(syncTimeString));
+      }
+    } catch (error) {
+      console.error("Error loading Google Classroom sync time:", error);
+    }
+  };
+
+  // Save Google Classroom sync time to AsyncStorage
+  const saveGoogleClassroomSyncTime = async (date: Date) => {
+    try {
+      await AsyncStorage.setItem("googleClassroomLastSync", date.toISOString());
+      setGoogleClassroomSyncTime(date);
+    } catch (error) {
+      console.error("Error saving Google Classroom sync time:", error);
+    }
+  };
+
+  // Fetch LMS connections from API
+  const fetchLMSConnections = async () => {
+    try {
+      // Replace with your actual API endpoint
+      const response = await fetch("YOUR_API_ENDPOINT/connections");
+      if (response.ok) {
+        const lmsConnections: Connection[] = await response.json();
+        setConnections(lmsConnections);
+      }
+    } catch (error) {
+      console.error("Error fetching LMS connections:", error);
+    }
+  };
+
+  const getRelativeTime = (date: Date): string => {
+    const now = new Date();
+    const diffInMs = now.getTime() - date.getTime();
+    const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+    const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+
+    if (diffInMinutes < 1) {
+      return "Just now";
+    } else if (diffInMinutes < 60) {
+      return `${diffInMinutes} minute${diffInMinutes === 1 ? "" : "s"} ago`;
+    } else if (diffInHours < 24) {
+      return `${diffInHours} hour${diffInHours === 1 ? "" : "s"} ago`;
+    } else if (diffInDays < 7) {
+      return `${diffInDays} day${diffInDays === 1 ? "" : "s"} ago`;
+    } else {
+      return date.toLocaleDateString();
+    }
+  };
+
+  const getLastSyncTime = (connection: Connection): string => {
+    if (connection.type === "google-classroom") {
+      return googleClassroomSyncTime
+        ? getRelativeTime(googleClassroomSyncTime)
+        : "Never";
+    } else {
+      return connection.lastSync
+        ? getRelativeTime(new Date(connection.lastSync))
+        : "Never";
+    }
+  };
+
+  // Check Google sign-in status on component mount
+  useEffect(() => {
+    checkGoogleSignInStatus();
+    loadGoogleClassroomSyncTime();
+    fetchLMSConnections();
+  }, []);
+
+  const checkGoogleSignInStatus = async () => {
+    try {
+      // Use getCurrentUser() instead of isSignedIn()
+      const currentUser = await GoogleSignin.getCurrentUser();
+      const isSignedIn = currentUser !== null;
+      setIsGoogleSignedIn(isSignedIn);
+
+      // If signed in, add Google Classroom to connections if not already there
+      if (isSignedIn) {
+        setConnections((prev) => {
+          const hasGoogleClassroom = prev.some(
+            (conn) => conn.type === "google-classroom"
+          );
+          if (!hasGoogleClassroom) {
+            return [
+              ...prev,
+              {
+                id: 2,
+                name: "Google Classroom",
+                url: "classroom.google.com",
+                connected: true,
+                type: "google-classroom",
+              },
+            ];
+          }
+          return prev;
+        });
+      } else {
+        // Remove Google Classroom from connections if signed out
+        setConnections((prev) =>
+          prev.filter((conn) => conn.type !== "google-classroom")
+        );
+      }
+    } catch (error) {
+      console.error("Error checking Google sign-in status:", error);
+      // If there's an error (like user not signed in), treat as not signed in
+      setIsGoogleSignedIn(false);
+      setConnections((prev) =>
+        prev.filter((conn) => conn.type !== "google-classroom")
+      );
+    }
+  };
+
+  const initialiseIntegration = async () => {
+      setIsGoogleClassroomSyncing(true);
+      try {
+        const authToken = await getToken()
+        const tokens = await GoogleSignin.getTokens();
+
+        // Make API request to your server with the auth token
+        const response = await fetch(`${Constants.api}/api/integration/lms/google-classroom`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({
+            token: tokens.accessToken
+          })
+        });
+
+        if (response.ok) {
+          // Save the sync time to AsyncStorage
+          const now = new Date();
+          await saveGoogleClassroomSyncTime(now);
+          Alert.alert("Success", "Google Classroom refreshed successfully!");
+        } else {
+          Alert.alert("Error", "Failed to refresh Google Classroom");
+        }
+      } catch (error) {
+        console.error("Refresh error:", error);
+        Alert.alert("Error", "Failed to refresh connection");
+      } finally {
+        setIsGoogleClassroomSyncing(false);
+      }
+  }
 
   const handleGoogleClassroomSignIn = async () => {
     try {
+      await GoogleSignin.signOut();
       await GoogleSignin.hasPlayServices();
       const userInfo = await GoogleSignin.signIn();
-      
-      // Get the access token
+
       const tokens = await GoogleSignin.getTokens();
-      
-      console.log('User Info:', userInfo);
-      console.log('Access Token:', tokens.accessToken);
-      console.log('ID Token:', tokens.idToken);
-      
-      // For now, just print the token - you can send this to your backend
-      Alert.alert('Success', `Google Classroom connected!\nAccess Token: ${tokens.accessToken.substring(0, 50)}...`);
-      
+      console.log("tokens:", tokens);
+      console.log("User Info:", userInfo);
+
+      setIsGoogleSignedIn(true);
       setShowConnectionModal(false);
+
+      // Add Google Classroom to connections
+      setConnections((prev) => [
+        ...prev,
+        {
+          id: 2,
+          name: "Google Classroom",
+          url: "classroom.google.com",
+          connected: true,
+          type: "google-classroom",
+        },
+      ]);
+
+      await initialiseIntegration()
+      await handleRefreshConnection(0, "google-classroom")
       
+      const now = new Date();
+      await saveGoogleClassroomSyncTime(now);
+
+      Alert.alert("Success", "Google Classroom connected successfully!");
     } catch (error) {
-      console.error('Google Sign-In Error:', error);
+      console.error("Google Sign-In Error:", error);
       if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-        Alert.alert('Cancelled', 'Sign in was cancelled');
+        Alert.alert("Cancelled", "Sign in was cancelled");
       } else if (error.code === statusCodes.IN_PROGRESS) {
-        Alert.alert('In Progress', 'Sign in is already in progress');
+        Alert.alert("In Progress", "Sign in is already in progress");
       } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        Alert.alert('Error', 'Play services not available');
+        Alert.alert("Error", "Play services not available");
       } else {
-        Alert.alert('Error', 'Something went wrong with Google Sign-In');
+        Alert.alert("Error", "Something went wrong with Google Sign-In");
       }
     }
   };
 
+  const handleGoogleClassroomSignOut = async () => {
+    try {
+      await GoogleSignin.signOut();
+      setIsGoogleSignedIn(false);
+
+      // Remove Google Classroom from connections
+      setConnections((prev) =>
+        prev.filter((conn) => conn.type !== "google-classroom")
+      );
+
+      // Clear Google Classroom sync time from AsyncStorage
+      await AsyncStorage.removeItem("googleClassroomLastSync");
+      setGoogleClassroomSyncTime(null);
+
+      Alert.alert("Success", "Signed out of Google Classroom");
+    } catch (error) {
+      console.error("Sign out error:", error);
+      Alert.alert("Error", "Failed to sign out");
+    }
+  };
+
+  const handleRefreshConnection = async (
+    connectionId: number,
+    connectionType: string
+  ) => {
+    if (connectionType === "google-classroom") {
+      setIsGoogleClassroomSyncing(true);
+      try {
+        const authToken = await getToken()
+        const tokens = await GoogleSignin.getTokens();
+
+        // Make API request to your server with the auth token
+        const response = await fetch(`${Constants.api}/api/integration/lms/google-classroom/sync`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({
+            token: tokens.accessToken
+          })
+        });
+
+        if (response.ok) {
+          // Save the sync time to AsyncStorage
+          const now = new Date();
+          await saveGoogleClassroomSyncTime(now);
+          Alert.alert("Success", "Google Classroom refreshed successfully!");
+        } else {
+          Alert.alert("Error", "Failed to refresh Google Classroom");
+        }
+      } catch (error) {
+        console.error("Refresh error:", error);
+        Alert.alert("Error", "Failed to refresh connection");
+      } finally {
+        setIsGoogleClassroomSyncing(false);
+      }
+    } else {
+      // Handle other LMS refresh logic here - you'll handle this yourself
+      Alert.alert("Info", "Refreshing connection...");
+    }
+  };
+
+  const handleRemoveConnection = (
+    connectionId: number,
+    connectionType: string
+  ) => {
+    if (connectionType === "google-classroom") {
+      Alert.alert(
+        "Sign Out",
+        "Are you sure you want to sign out of Google Classroom?",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Sign Out",
+            style: "destructive",
+            onPress: handleGoogleClassroomSignOut,
+          },
+        ]
+      );
+    } else {
+      Alert.alert(
+        "Remove Connection",
+        "Are you sure you want to remove this connection?",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Remove",
+            style: "destructive",
+            onPress: () => {
+              setConnections((prev) =>
+                prev.filter((conn) => conn.id !== connectionId)
+              );
+            },
+          },
+        ]
+      );
+    }
+  };
+
   const handleUniversityWebsite = () => {
-    Alert.alert('Coming Soon', 'University website integration will be available soon!');
+    Alert.alert(
+      "Coming Soon",
+      "University website integration will be available soon!"
+    );
     setShowConnectionModal(false);
   };
 
@@ -111,12 +404,12 @@ export default function SettingsScreen({ onClose }: Props) {
               <Ionicons name="close" size={24} color={colors.black} />
             </TouchableOpacity>
           </View>
-          
+
           <Text style={styles.modalSubtitle}>
             Choose a platform to connect with your learning management system
           </Text>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.connectionOption}
             onPress={handleUniversityWebsite}
           >
@@ -131,22 +424,39 @@ export default function SettingsScreen({ onClose }: Props) {
             </View>
             <Ionicons name="chevron-forward" size={20} color="#ccc" />
           </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.connectionOption}
-            onPress={handleGoogleClassroomSignIn}
-          >
-            <View style={styles.optionIconContainer}>
-              <MaterialIcons name="class" size={24} color={colors.primary} />
+
+          {!isGoogleSignedIn && (
+            <TouchableOpacity
+              style={styles.connectionOption}
+              onPress={handleGoogleClassroomSignIn}
+            >
+              <View style={styles.optionIconContainer}>
+                <MaterialIcons name="class" size={24} color={colors.primary} />
+              </View>
+              <View style={styles.optionTextContainer}>
+                <Text style={styles.optionTitle}>Google Classroom</Text>
+                <Text style={styles.optionDescription}>
+                  Connect to your Google Classroom courses
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#ccc" />
+            </TouchableOpacity>
+          )}
+
+          {isGoogleSignedIn && (
+            <View style={[styles.connectionOption, styles.connectedOption]}>
+              <View style={styles.optionIconContainer}>
+                <MaterialIcons name="class" size={24} color={colors.primary} />
+              </View>
+              <View style={styles.optionTextContainer}>
+                <Text style={styles.optionTitle}>Google Classroom</Text>
+                <Text style={styles.optionDescription}>
+                  Already connected to Google Classroom
+                </Text>
+              </View>
+              <Ionicons name="checkmark-circle" size={20} color="#4C5EFF" />
             </View>
-            <View style={styles.optionTextContainer}>
-              <Text style={styles.optionTitle}>Google Classroom</Text>
-              <Text style={styles.optionDescription}>
-                Connect to your Google Classroom courses
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
-          </TouchableOpacity>
+          )}
         </View>
       </View>
     </Modal>
@@ -210,7 +520,9 @@ export default function SettingsScreen({ onClose }: Props) {
               <View>
                 <Text style={styles.connectionTitle}>{conn.name}</Text>
                 <Text style={styles.connectionUrl}>{conn.url}</Text>
-                <Text style={styles.synced}>Last sync: {conn.synced}</Text>
+                <Text style={styles.synced}>
+                  Last sync: {getLastSyncTime(conn)}
+                </Text>
                 <View style={styles.connectedPill}>
                   <Text style={styles.connectedText}>Connected</Text>
                 </View>
@@ -225,10 +537,27 @@ export default function SettingsScreen({ onClose }: Props) {
                   thumbColor="#fff"
                 />
                 <View style={styles.iconRow}>
-                  <TouchableOpacity style={styles.iconButton}>
-                    <Ionicons name="reload" size={16} color="#444" />
+                  <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={() => handleRefreshConnection(conn.id, conn.type)}
+                    disabled={
+                      conn.type === "google-classroom" &&
+                      isGoogleClassroomSyncing
+                    }
+                  >
+                    {conn.type === "google-classroom" &&
+                    isGoogleClassroomSyncing ? (
+                      <Animated.View style={{ transform: [{ rotate: spin }] }}>
+                        <Ionicons name="reload" size={16} color="#999" />
+                      </Animated.View>
+                    ) : (
+                      <Ionicons name="reload" size={16} color="#444" />
+                    )}
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.iconButton}>
+                  <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={() => handleRemoveConnection(conn.id, conn.type)}
+                  >
                     <MaterialIcons name="close" size={16} color="#FF4E4E" />
                   </TouchableOpacity>
                 </View>
@@ -237,8 +566,8 @@ export default function SettingsScreen({ onClose }: Props) {
           </View>
         ))}
 
-        <TouchableOpacity 
-          onPress={() => setShowConnectionModal(true)} 
+        <TouchableOpacity
+          onPress={() => setShowConnectionModal(true)}
           style={styles.addButton}
         >
           <Text style={styles.addButtonText}>+ Add Connection</Text>
@@ -448,6 +777,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: "#E0E0F0",
+  },
+  connectedOption: {
+    backgroundColor: "#F0F4FF",
+    borderColor: "#4C5EFF",
   },
   optionIconContainer: {
     width: 40,

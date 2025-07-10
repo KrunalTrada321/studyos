@@ -1,5 +1,3 @@
-"use client"
-
 import { MaterialIcons } from "@expo/vector-icons"
 import { Camera, CameraView } from "expo-camera"
 import { useAudioRecorder, AudioModule, RecordingPresets } from "expo-audio"

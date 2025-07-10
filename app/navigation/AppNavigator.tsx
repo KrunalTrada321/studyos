@@ -2,7 +2,6 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React from "react";
 import AutomationDetailScreen from "../screens/AutomationDetailScreen";
 import LessonStart from "../screens/LessonStart";
-import ProfileScreen from "../screens/ProfileScreen";
 import SignInScreen from "../screens/SignInScreen"; // Import your SignIn screen
 import SignUpScreen from "../screens/SignUpScreen";
 import RootNavigator from "./RootNavigator";
@@ -18,7 +17,6 @@ export default function AppNavigator() {
       <Stack.Screen name="SignIn" component={SignInScreen} />
       <Stack.Screen name="SignUp" component={SignUpScreen} />
       <Stack.Screen name="Tabs" component={RootNavigator} />
-      <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen
         name="AutomationDetail"
         component={AutomationDetailScreen}

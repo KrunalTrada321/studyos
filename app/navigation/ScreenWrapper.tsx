@@ -4,7 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useState, useEffect } from "react";
 import { Modal, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator, Alert, TouchableWithoutFeedback } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import SettingsScreen from "../components/CustomRightDrawer";
+import SettingsScreen from "../components/Settings";
 import Constants from "../utils/constants";
 import { deleteToken, getToken } from "../utils/token";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";

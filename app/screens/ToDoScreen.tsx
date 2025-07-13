@@ -1,5 +1,4 @@
 "use client"
-
 import { Ionicons, MaterialIcons } from "@expo/vector-icons"
 import { useFocusEffect, useNavigation } from "expo-router"
 import { useCallback, useEffect, useState } from "react"
@@ -19,7 +18,7 @@ import Constants from "../utils/constants"
 import { getToken } from "../utils/token"
 
 // Type definitions
-interface DueDate {
+interface DueDateObject {
   year: number
   month: number
   day: number
@@ -29,7 +28,7 @@ interface Todo {
   id: string
   title: string
   description?: string
-  dueDate?: DueDate | null
+  dueDate?: DueDateObject | number | null // Updated to accept number (timestamp)
   completed: boolean
   workType: "ASSIGNMENT" | "SHORT_ANSWER_QUESTION" | string
   subject: string
@@ -105,11 +104,22 @@ export default function ToDoScreen() {
     }
   }
 
-  // Format date for display
-  const formatDate = (dueDate?: DueDate | null): string => {
-    if (!dueDate) return "No due date"
+  // Helper function to get a Date object from DueDateObject or number
+  const getDateFromDueDate = (dueDate?: DueDateObject | number | null): Date | null => {
+    if (!dueDate) return null
+    if (typeof dueDate === "number") {
+      // Assuming the number is a Unix timestamp in seconds, convert to milliseconds
+      return new Date(dueDate * 1000)
+    } else {
+      return new Date(dueDate.year, dueDate.month - 1, dueDate.day)
+    }
+  }
 
-    const date = new Date(dueDate.year, dueDate.month - 1, dueDate.day)
+  // Format date for display
+  const formatDate = (dueDate?: DueDateObject | number | null): string => {
+    const date = getDateFromDueDate(dueDate)
+    if (!date) return "No due date"
+
     const today = new Date()
     const tomorrow = new Date(today)
     tomorrow.setDate(tomorrow.getDate() + 1)
@@ -134,10 +144,10 @@ export default function ToDoScreen() {
   }
 
   // Check if todo is overdue
-  const isOverdue = (dueDate?: DueDate | null): boolean => {
-    if (!dueDate) return false
+  const isOverdue = (dueDate?: DueDateObject | number | null): boolean => {
+    const date = getDateFromDueDate(dueDate)
+    if (!date) return false
 
-    const date = new Date(dueDate.year, dueDate.month - 1, dueDate.day)
     const today = new Date()
     const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate())
     const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate())
@@ -192,7 +202,9 @@ export default function ToDoScreen() {
 
     const today = todos.filter((todo) => {
       if (todo.completed || !todo.dueDate) return false
-      const date = new Date(todo.dueDate.year, todo.dueDate.month - 1, todo.dueDate.day)
+      const date = getDateFromDueDate(todo.dueDate)
+      if (!date) return false
+
       const todayDate = new Date()
       const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate())
       const todayOnly = new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate())
@@ -201,7 +213,9 @@ export default function ToDoScreen() {
 
     const upcoming = todos.filter((todo) => {
       if (todo.completed || !todo.dueDate) return false
-      const date = new Date(todo.dueDate.year, todo.dueDate.month - 1, todo.dueDate.day)
+      const date = getDateFromDueDate(todo.dueDate)
+      if (!date) return false
+
       const todayDate = new Date()
       const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate())
       const todayOnly = new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate())
@@ -320,7 +334,6 @@ export default function ToDoScreen() {
   // ToDo Tab Component
   const ToDoTab = () => {
     const { completed, overdue, today, upcoming, noDueDate } = groupTodos()
-
     return (
       <ScrollView
         style={styles.scrollView}
@@ -356,7 +369,6 @@ export default function ToDoScreen() {
   const CalendarTab = () => {
     const getMarkedDates = () => {
       const marked: Record<string, any> = {}
-
       // Mark selected date
       if (selectedDate) {
         marked[selectedDate] = {
@@ -364,36 +376,43 @@ export default function ToDoScreen() {
           selectedColor: colors.primary,
         }
       }
-
       // Mark dates with todos (only for todos that have due dates)
       todos.forEach((todo) => {
         if (todo.dueDate) {
-          const dateString = `${todo.dueDate.year}-${String(todo.dueDate.month).padStart(2, "0")}-${String(todo.dueDate.day).padStart(2, "0")}`
-          if (marked[dateString]) {
-            marked[dateString] = {
-              ...marked[dateString],
-              marked: true,
-              dotColor: todo.completed ? "#10B981" : "#EF4444",
-            }
-          } else {
-            marked[dateString] = {
-              marked: true,
-              dotColor: todo.completed ? "#10B981" : "#EF4444",
+          const date = getDateFromDueDate(todo.dueDate)
+          if (date) {
+            const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+              date.getDate(),
+            ).padStart(2, "0")}`
+            if (marked[dateString]) {
+              marked[dateString] = {
+                ...marked[dateString],
+                marked: true,
+                dotColor: todo.completed ? "#10B981" : "#EF4444",
+              }
+            } else {
+              marked[dateString] = {
+                marked: true,
+                dotColor: todo.completed ? "#10B981" : "#EF4444",
+              }
             }
           }
         }
       })
-
       return marked
     }
 
     const getSelectedDateTodos = (): Todo[] => {
       if (!selectedDate) return []
-
       const [year, month, day] = selectedDate.split("-").map(Number)
       return todos.filter((todo) => {
-        if (!todo.dueDate) return false
-        return todo.dueDate.year === year && todo.dueDate.month === month && todo.dueDate.day === day
+        const todoDate = getDateFromDueDate(todo.dueDate)
+        if (!todoDate) return false
+        return (
+          todoDate.getFullYear() === year &&
+          todoDate.getMonth() + 1 === month && // Month is 0-indexed for Date object
+          todoDate.getDate() === day
+        )
       })
     }
 
@@ -434,7 +453,7 @@ export default function ToDoScreen() {
           {selectedDate && (
             <View style={styles.selectedDateContainer}>
               <Text style={styles.selectedDateTitle}>
-                Tasks for{" "}
+                {"Tasks for "}
                 {new Date(selectedDate).toLocaleDateString("en-US", {
                   weekday: "long",
                   year: "numeric",
@@ -481,7 +500,7 @@ export default function ToDoScreen() {
           </View>
           <Text style={styles.planTitle}>Final Exam Preparation</Text>
           <Text style={styles.planDescription}>
-            Comprehensive review of mechanics, thermodynamics, and electromagnetism
+            {"Comprehensive review of mechanics, thermodynamics, and electromagnetism"}
           </Text>
           <View style={styles.planMeta}>
             <View style={[styles.subjectBadge, { backgroundColor: "#8B5CF6" }]}>

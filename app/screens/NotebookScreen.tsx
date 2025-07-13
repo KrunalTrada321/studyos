@@ -1,27 +1,31 @@
-"use client"
+"use client";
 
-import { FontAwesome, FontAwesome5, MaterialIcons } from "@expo/vector-icons"
-import { useNavigation } from "expo-router"
-import { useState, useEffect } from "react"
+import { FontAwesome, FontAwesome5, MaterialIcons } from "@expo/vector-icons";
+import { useNavigation } from "expo-router";
+import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   FlatList,
+  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-  ActivityIndicator,
-  Alert,
-  RefreshControl,
-} from "react-native"
-import { colors } from "../utils/colors"
-import Constants from "../utils/constants"
-import { getToken } from "../utils/token"
+} from "react-native";
+import { colors } from "../utils/colors";
+import Constants from "../utils/constants";
+import { getToken } from "../utils/token";
 
-const tabs = ["Notes", "Mindmaps", "Automation"]
+const tabs = [
+  { name: "Notes", icon: "book" },
+  { name: "Mindmaps", icon: "account-tree" },
+  { name: "Auto", icon: "auto-awesome" },
+];
 
 // API Configuration
-const API_BASE_URL = `${Constants.api}/api`
+const API_BASE_URL = `${Constants.api}/api`;
 
 // API Functions
 const fetchSubjects = async () => {
@@ -32,35 +36,38 @@ const fetchSubjects = async () => {
         Authorization: `Bearer ${await getToken()}`,
         "Content-Type": "application/json",
       },
-    })
+    });
     if (!response.ok) {
-      throw new Error("Failed to fetch subjects")
+      throw new Error("Failed to fetch subjects");
     }
-    return await response.json()
+    return await response.json();
   } catch (error) {
-    console.error("Error fetching subjects:", error)
-    throw error
+    console.error("Error fetching subjects:", error);
+    throw error;
   }
-}
+};
 
 const fetchMindmaps = async (subject) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/mindmaps?subject=${encodeURIComponent(subject)}`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${await getToken()}`,
-        "Content-Type": "application/json",
-      },
-    })
+    const response = await fetch(
+      `${API_BASE_URL}/mindmaps?subject=${encodeURIComponent(subject)}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${await getToken()}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
     if (!response.ok) {
-      throw new Error("Failed to fetch mindmaps")
+      throw new Error("Failed to fetch mindmaps");
     }
-    return await response.json()
+    return await response.json();
   } catch (error) {
-    console.error("Error fetching mindmaps:", error)
-    throw error
+    console.error("Error fetching mindmaps:", error);
+    throw error;
   }
-}
+};
 
 const fetchMindmapDetail = async (mindmapId) => {
   try {
@@ -70,32 +77,46 @@ const fetchMindmapDetail = async (mindmapId) => {
         Authorization: `Bearer ${await getToken()}`,
         "Content-Type": "application/json",
       },
-    })
+    });
     if (!response.ok) {
-      throw new Error("Failed to fetch mindmap detail")
+      throw new Error("Failed to fetch mindmap detail");
     }
-    return await response.json()
+    return await response.json();
   } catch (error) {
-    console.error("Error fetching mindmap detail:", error)
-    throw error
+    console.error("Error fetching mindmap detail:", error);
+    throw error;
   }
-}
+};
 
 // Subject icon mapping
 const getSubjectIcon = (subjectName) => {
   const iconMap = {
     English: { icon: "language", color: "#45B7D1", IconComponent: FontAwesome },
     Math: { icon: "calculator", color: "#4B4BFF", IconComponent: FontAwesome },
-    Mathematics: { icon: "calculator", color: "#4B4BFF", IconComponent: FontAwesome },
+    Mathematics: {
+      icon: "calculator",
+      color: "#4B4BFF",
+      IconComponent: FontAwesome,
+    },
     Health: { icon: "heart", color: "#FF6B6B", IconComponent: FontAwesome },
-    French: { icon: "balance-scale", color: "#4ECDC4", IconComponent: FontAwesome },
+    French: {
+      icon: "balance-scale",
+      color: "#4ECDC4",
+      IconComponent: FontAwesome,
+    },
     Theology: { icon: "flask", color: "#FF8E53", IconComponent: FontAwesome5 },
     Physics: { icon: "atom", color: "#007bff", IconComponent: FontAwesome5 },
     Chemistry: { icon: "flask", color: "#FF8E53", IconComponent: FontAwesome5 },
     Others: { icon: "book", color: "#9C27B0", IconComponent: FontAwesome },
-  }
-  return iconMap[subjectName] || { icon: "book", color: "#666", IconComponent: FontAwesome }
-}
+  };
+  return (
+    iconMap[subjectName] || {
+      icon: "book",
+      color: "#666",
+      IconComponent: FontAwesome,
+    }
+  );
+};
 
 const automationData = [
   {
@@ -124,14 +145,20 @@ const automationData = [
     icon: "email",
     priority: "high",
   },
-]
+];
 
 // Helper function to flatten mindmap structure for display
-const flattenMindmapNodes = (node, depth = 0, parentPath = "", isLastChild = true, parentConnectors = []) => {
+const flattenMindmapNodes = (
+  node,
+  depth = 0,
+  parentPath = "",
+  isLastChild = true,
+  parentConnectors = []
+) => {
   // Ensure parentConnectors is always an array
-  const safeParentConnectors = parentConnectors || []
-  const currentPath = parentPath ? `${parentPath} > ${node.title}` : node.title
-  const connectors = [...safeParentConnectors, isLastChild]
+  const safeParentConnectors = parentConnectors || [];
+  const currentPath = parentPath ? `${parentPath} > ${node.title}` : node.title;
+  const connectors = [...safeParentConnectors, isLastChild];
 
   const flattened = [
     {
@@ -143,145 +170,174 @@ const flattenMindmapNodes = (node, depth = 0, parentPath = "", isLastChild = tru
       isLastChild,
       connectors: connectors || [], // Ensure connectors is always an array
     },
-  ]
+  ];
 
   if (node.children && node.children.length > 0) {
     node.children.forEach((child, index) => {
-      const isLast = index === node.children.length - 1
-      flattened.push(...flattenMindmapNodes(child, depth + 1, currentPath, isLast, connectors))
-    })
+      const isLast = index === node.children.length - 1;
+      flattened.push(
+        ...flattenMindmapNodes(
+          child,
+          depth + 1,
+          currentPath,
+          isLast,
+          connectors
+        )
+      );
+    });
   }
 
-  return flattened
-}
+  return flattened;
+};
 
 const NotebookScreen = () => {
-  const [activeTab, setActiveTab] = useState("Notes")
-  const [searchQuery, setSearchQuery] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [refreshing, setRefreshing] = useState(false)
-  const [subjects, setSubjects] = useState([])
-  const [selectedSubject, setSelectedSubject] = useState(null)
-  const [mindmaps, setMindmaps] = useState([])
-  const [selectedMindmap, setSelectedMindmap] = useState(null)
-  const [flattenedNodes, setFlattenedNodes] = useState([])
-  const [mindmapView, setMindmapView] = useState("subjects") // 'subjects', 'mindmaps', 'detail'
-  const navigation = useNavigation()
+  const [activeTab, setActiveTab] = useState("Notes");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [subjects, setSubjects] = useState([]);
+  const [selectedSubject, setSelectedSubject] = useState(null);
+  const [mindmaps, setMindmaps] = useState([]);
+  const [selectedMindmap, setSelectedMindmap] = useState(null);
+  const [flattenedNodes, setFlattenedNodes] = useState([]);
+  const [mindmapView, setMindmapView] = useState("subjects"); // 'subjects', 'mindmaps', 'detail'
+  const navigation = useNavigation();
 
   // Load subjects on component mount
   useEffect(() => {
     if (activeTab === "Mindmaps") {
-      loadSubjects()
+      loadSubjects();
     }
-  }, [activeTab])
+  }, [activeTab]);
 
   const loadSubjects = async (isRefresh = false) => {
     if (isRefresh) {
-      setRefreshing(true)
+      setRefreshing(true);
     } else {
-      setLoading(true)
+      setLoading(true);
     }
     try {
-      const subjectsData = await fetchSubjects()
-      setSubjects(subjectsData)
+      const subjectsData = await fetchSubjects();
+      setSubjects(subjectsData);
     } catch (error) {
-      Alert.alert("Error", "Failed to load subjects. Please try again.")
+      Alert.alert("Error", "Failed to load subjects. Please try again.");
     } finally {
-      setLoading(false)
-      setRefreshing(false)
+      setLoading(false);
+      setRefreshing(false);
     }
-  }
+  };
 
   const loadMindmaps = async (subject, isRefresh = false) => {
     if (isRefresh) {
-      setRefreshing(true)
+      setRefreshing(true);
     } else {
-      setLoading(true)
+      setLoading(true);
     }
     try {
-      const mindmapsData = await fetchMindmaps(subject.name)
-      setMindmaps(mindmapsData)
-      setSelectedSubject(subject)
-      setMindmapView("mindmaps")
+      const mindmapsData = await fetchMindmaps(subject.name);
+      setMindmaps(mindmapsData);
+      setSelectedSubject(subject);
+      setMindmapView("mindmaps");
     } catch (error) {
-      Alert.alert("Error", "Failed to load mindmaps. Please try again.")
+      Alert.alert("Error", "Failed to load mindmaps. Please try again.");
     } finally {
-      setLoading(false)
-      setRefreshing(false)
+      setLoading(false);
+      setRefreshing(false);
     }
-  }
+  };
 
   const loadMindmapDetail = async (mindmap, isRefresh = false) => {
     if (isRefresh) {
-      setRefreshing(true)
+      setRefreshing(true);
     } else {
-      setLoading(true)
+      setLoading(true);
     }
     try {
-      const mindmapDetail = await fetchMindmapDetail(mindmap.id)
-      setSelectedMindmap(mindmapDetail)
+      const mindmapDetail = await fetchMindmapDetail(mindmap.id);
+      setSelectedMindmap(mindmapDetail);
       // Flatten the mindmap structure for display
-      const flattened = flattenMindmapNodes(mindmapDetail)
-      setFlattenedNodes(flattened)
-      setMindmapView("detail")
+      const flattened = flattenMindmapNodes(mindmapDetail);
+      setFlattenedNodes(flattened);
+      setMindmapView("detail");
     } catch (error) {
-      Alert.alert("Error", "Failed to load mindmap detail. Please try again.")
+      Alert.alert("Error", "Failed to load mindmap detail. Please try again.");
     } finally {
-      setLoading(false)
-      setRefreshing(false)
+      setLoading(false);
+      setRefreshing(false);
     }
-  }
+  };
 
   const handleBackNavigation = () => {
     if (mindmapView === "detail") {
-      setMindmapView("mindmaps")
-      setSelectedMindmap(null)
-      setFlattenedNodes([])
+      setMindmapView("mindmaps");
+      setSelectedMindmap(null);
+      setFlattenedNodes([]);
     } else if (mindmapView === "mindmaps") {
-      setMindmapView("subjects")
-      setSelectedSubject(null)
-      setMindmaps([])
+      setMindmapView("subjects");
+      setSelectedSubject(null);
+      setMindmaps([]);
     }
-  }
+  };
 
   const onRefresh = () => {
     if (mindmapView === "subjects") {
-      loadSubjects(true)
+      loadSubjects(true);
     } else if (mindmapView === "mindmaps") {
-      loadMindmaps(selectedSubject, true)
+      loadMindmaps(selectedSubject, true);
     } else if (mindmapView === "detail") {
-      loadMindmapDetail(selectedMindmap, true)
+      loadMindmapDetail(selectedMindmap, true);
     }
-  }
+  };
 
   const renderTabButtons = () => {
     return (
       <View style={styles.tabContainer}>
         {tabs.map((tab) => (
           <TouchableOpacity
-            key={tab}
-            style={[styles.tabButton, activeTab === tab && styles.activeTabButton]}
+            key={tab.name}
+            style={[
+              styles.tabButton,
+              activeTab === tab.name && styles.activeTabButton,
+            ]}
             onPress={() => {
-              setActiveTab(tab)
-              if (tab === "Mindmaps") {
-                setMindmapView("subjects")
-                setSelectedSubject(null)
-                setSelectedMindmap(null)
-                setFlattenedNodes([])
+              setActiveTab(tab.name);
+              if (tab.name === "Mindmaps") {
+                setMindmapView("subjects");
+                setSelectedSubject(null);
+                setSelectedMindmap(null);
+                setFlattenedNodes([]);
               }
             }}
           >
-            <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>{tab}</Text>
+            <MaterialIcons
+              name={tab.icon}
+              size={20}
+              color={activeTab === tab.name ? "#fff" : "#666"}
+              style={styles.tabIcon}
+            />
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === tab.name && styles.activeTabText,
+              ]}
+            >
+              {tab.name}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
-    )
-  }
+    );
+  };
 
   const renderNotesHeader = () => (
     <View style={styles.searchSection}>
       <View style={styles.searchContainer}>
-        <MaterialIcons name="search" size={20} color="#666" style={styles.searchIcon} />
+        <MaterialIcons
+          name="search"
+          size={20}
+          color="#666"
+          style={styles.searchIcon}
+        />
         <TextInput
           style={styles.searchInput}
           placeholder="Search your notes..."
@@ -294,7 +350,7 @@ const NotebookScreen = () => {
         <MaterialIcons name="tune" size={20} color={colors.primary} />
       </TouchableOpacity>
     </View>
-  )
+  );
 
   const renderNotesEmpty = () => (
     <View style={styles.emptyContainer}>
@@ -302,25 +358,27 @@ const NotebookScreen = () => {
         <MaterialIcons name="note-add" size={64} color="#E0E0E0" />
       </View>
       <Text style={styles.emptyTitle}>No notes yet</Text>
-      <Text style={styles.emptySubtitle}>Start capturing your learning journey</Text>
+      <Text style={styles.emptySubtitle}>
+        Start capturing your learning journey
+      </Text>
       <View style={styles.actionButtons}>
-        <TouchableOpacity style={styles.primaryButton}>
+        <TouchableOpacity onPress={() => navigation.navigate("Capture")} style={styles.primaryButton}>
           <MaterialIcons name="mic" size={20} color="#fff" />
           <Text style={styles.primaryButtonText}>Record Class</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.secondaryButton}>
+        <TouchableOpacity onPress={() => navigation.navigate("Capture")} style={styles.secondaryButton}>
           <MaterialIcons name="upload-file" size={20} color={colors.primary} />
           <Text style={styles.secondaryButtonText}>Upload File</Text>
         </TouchableOpacity>
       </View>
     </View>
-  )
+  );
 
   const renderNotesTab = () => {
     const data = [
       { key: "header", type: "header" },
       { key: "empty", type: "empty" },
-    ]
+    ];
 
     return (
       <FlatList
@@ -330,21 +388,21 @@ const NotebookScreen = () => {
         contentContainerStyle={styles.contentContainer}
         renderItem={({ item }) => {
           if (item.type === "header") {
-            return renderNotesHeader()
+            return renderNotesHeader();
           } else if (item.type === "empty") {
-            return renderNotesEmpty()
+            return renderNotesEmpty();
           }
-          return null
+          return null;
         }}
       />
-    )
-  }
+    );
+  };
 
   const renderSubjectsHeader = () => (
     <View style={styles.sectionHeader}>
       <Text style={styles.sectionTitle}>Select Subject</Text>
     </View>
-  )
+  );
 
   const renderSubjectsList = () => {
     if (loading) {
@@ -361,13 +419,17 @@ const NotebookScreen = () => {
             </View>
           )}
         />
-      )
+      );
     }
 
     const data = [
       { key: "header", type: "header" },
-      ...subjects.map((subject) => ({ ...subject, key: subject.id, type: "subject" })),
-    ]
+      ...subjects.map((subject) => ({
+        ...subject,
+        key: subject.id,
+        type: "subject",
+      })),
+    ];
 
     return (
       <FlatList
@@ -375,15 +437,29 @@ const NotebookScreen = () => {
         keyExtractor={(item) => item.key}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.contentContainer}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+          />
+        }
         renderItem={({ item }) => {
           if (item.type === "header") {
-            return renderSubjectsHeader()
+            return renderSubjectsHeader();
           } else if (item.type === "subject") {
-            const { icon, color, IconComponent } = getSubjectIcon(item.name)
+            const { icon, color, IconComponent } = getSubjectIcon(item.name);
             return (
-              <TouchableOpacity style={styles.subjectCard} onPress={() => loadMindmaps(item)}>
-                <View style={[styles.subjectIcon, { backgroundColor: `${color}15` }]}>
+              <TouchableOpacity
+                style={styles.subjectCard}
+                onPress={() => loadMindmaps(item)}
+              >
+                <View
+                  style={[
+                    styles.subjectIcon,
+                    { backgroundColor: `${color}15` },
+                  ]}
+                >
                   <IconComponent name={icon} size={24} color={color} />
                 </View>
                 <View style={styles.subjectInfo}>
@@ -392,24 +468,31 @@ const NotebookScreen = () => {
                     {item.mindmaps} concepts • {item.lessons} lessons
                   </Text>
                 </View>
-                <MaterialIcons name="arrow-forward-ios" size={20} color="#666" />
+                <MaterialIcons
+                  name="arrow-forward-ios"
+                  size={20}
+                  color="#666"
+                />
               </TouchableOpacity>
-            )
+            );
           }
-          return null
+          return null;
         }}
       />
-    )
-  }
+    );
+  };
 
   const renderMindmapsHeader = () => (
     <View style={styles.sectionHeader}>
-      <TouchableOpacity style={styles.backButton} onPress={handleBackNavigation}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={handleBackNavigation}
+      >
         <MaterialIcons name="arrow-back" size={20} color={colors.primary} />
         <Text style={styles.backButtonText}>{selectedSubject?.name}</Text>
       </TouchableOpacity>
     </View>
-  )
+  );
 
   const renderMindmapsList = () => {
     if (loading) {
@@ -426,7 +509,7 @@ const NotebookScreen = () => {
             </View>
           )}
         />
-      )
+      );
     }
 
     if (mindmaps.length === 0) {
@@ -439,31 +522,47 @@ const NotebookScreen = () => {
           keyExtractor={(item) => item.key}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.contentContainer}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[colors.primary]}
+            />
+          }
           renderItem={({ item }) => {
             if (item.type === "header") {
-              return renderMindmapsHeader()
+              return renderMindmapsHeader();
             } else if (item.type === "empty") {
               return (
                 <View style={styles.emptyContainer}>
                   <View style={styles.emptyIconContainer}>
-                    <MaterialIcons name="psychology" size={64} color="#E0E0E0" />
+                    <MaterialIcons
+                      name="psychology"
+                      size={64}
+                      color="#E0E0E0"
+                    />
                   </View>
                   <Text style={styles.emptyTitle}>No concepts yet</Text>
-                  <Text style={styles.emptySubtitle}>Start creating mind maps for {selectedSubject?.name}</Text>
+                  <Text style={styles.emptySubtitle}>
+                    Start creating mind maps for {selectedSubject?.name}
+                  </Text>
                 </View>
-              )
+              );
             }
-            return null
+            return null;
           }}
         />
-      )
+      );
     }
 
     const data = [
       { key: "header", type: "header" },
-      ...mindmaps.map((mindmap) => ({ ...mindmap, key: mindmap.id, type: "mindmap" })),
-    ]
+      ...mindmaps.map((mindmap) => ({
+        ...mindmap,
+        key: mindmap.id,
+        type: "mindmap",
+      })),
+    ];
 
     return (
       <FlatList
@@ -471,15 +570,29 @@ const NotebookScreen = () => {
         keyExtractor={(item) => item.key}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.contentContainer}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+          />
+        }
         renderItem={({ item }) => {
           if (item.type === "header") {
-            return renderMindmapsHeader()
+            return renderMindmapsHeader();
           } else if (item.type === "mindmap") {
-            const { color } = getSubjectIcon(selectedSubject?.name)
+            const { color } = getSubjectIcon(selectedSubject?.name);
             return (
-              <TouchableOpacity style={styles.mindmapCard} onPress={() => loadMindmapDetail(item)}>
-                <View style={[styles.mindmapIcon, { backgroundColor: `${color}15` }]}>
+              <TouchableOpacity
+                style={styles.mindmapCard}
+                onPress={() => loadMindmapDetail(item)}
+              >
+                <View
+                  style={[
+                    styles.mindmapIcon,
+                    { backgroundColor: `${color}15` },
+                  ]}
+                >
                   <MaterialIcons name="psychology" size={24} color={color} />
                 </View>
                 <View style={styles.mindmapInfo}>
@@ -488,42 +601,53 @@ const NotebookScreen = () => {
                     {item.description}
                   </Text>
                 </View>
-                <MaterialIcons name="arrow-forward-ios" size={20} color="#666" />
+                <MaterialIcons
+                  name="arrow-forward-ios"
+                  size={20}
+                  color="#666"
+                />
               </TouchableOpacity>
-            )
+            );
           }
-          return null
+          return null;
         }}
       />
-    )
-  }
+    );
+  };
 
   const renderMindmapDetailHeader = () => (
     <View style={styles.sectionHeader}>
-      <TouchableOpacity style={styles.backButton} onPress={handleBackNavigation}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={handleBackNavigation}
+      >
         <MaterialIcons name="arrow-back" size={20} color={colors.primary} />
         <Text style={styles.backButtonText}>Back</Text>
       </TouchableOpacity>
     </View>
-  )
+  );
 
   const renderMindmapInfo = () => (
     <View style={styles.mindmapHeader}>
       <Text style={styles.mindmapDetailTitle}>{selectedMindmap.title}</Text>
-      <Text style={styles.mindmapDescription}>{selectedMindmap.description}</Text>
+      <Text style={styles.mindmapDescription}>
+        {selectedMindmap.description}
+      </Text>
       <View style={styles.mindmapMeta}>
         <Text style={styles.mindmapSubject}>{selectedMindmap.subject}</Text>
-        <Text style={styles.mindmapConcepts}>{selectedMindmap.children?.length || 0} main concepts</Text>
+        <Text style={styles.mindmapConcepts}>
+          {selectedMindmap.children?.length || 0} main concepts
+        </Text>
       </View>
     </View>
-  )
+  );
 
   const renderTreeConnectors = (connectors, depth) => {
-    if (depth === 0 || !connectors || connectors.length === 0) return null
+    if (depth === 0 || !connectors || connectors.length === 0) return null;
 
     // Ensure connectors is an array and has the expected length
-    const safeConnectors = Array.isArray(connectors) ? connectors : []
-    if (safeConnectors.length === 0) return null
+    const safeConnectors = Array.isArray(connectors) ? connectors : [];
+    if (safeConnectors.length === 0) return null;
 
     return (
       <View style={styles.treeConnectors}>
@@ -534,16 +658,24 @@ const NotebookScreen = () => {
         ))}
         <View style={styles.connectorColumn}>
           <View style={styles.horizontalLine} />
-          {!safeConnectors[safeConnectors.length - 1] && <View style={styles.verticalLine} />}
+          {!safeConnectors[safeConnectors.length - 1] && (
+            <View style={styles.verticalLine} />
+          )}
         </View>
       </View>
-    )
-  }
+    );
+  };
 
   const renderMindmapNode = ({ item }) => {
-    const { color } = getSubjectIcon(selectedMindmap?.subject)
-    const indentationColors = ["#4B4BFF", "#FF6B6B", "#4ECDC4", "#FFA726", "#9C27B0"]
-    const nodeColor = indentationColors[item.depth % indentationColors.length]
+    const { color } = getSubjectIcon(selectedMindmap?.subject);
+    const indentationColors = [
+      "#4B4BFF",
+      "#FF6B6B",
+      "#4ECDC4",
+      "#FFA726",
+      "#9C27B0",
+    ];
+    const nodeColor = indentationColors[item.depth % indentationColors.length];
 
     return (
       <View style={styles.nodeContainer}>
@@ -551,9 +683,13 @@ const NotebookScreen = () => {
         {item.connectors && renderTreeConnectors(item.connectors, item.depth)}
 
         {/* Node content */}
-        <View style={[styles.conceptCard, { marginLeft: item.depth > 0 ? 0 : 0 }]}>
+        <View
+          style={[styles.conceptCard, { marginLeft: item.depth > 0 ? 0 : 0 }]}
+        >
           <View style={styles.conceptHeader}>
-            <View style={[styles.conceptIndicator, { backgroundColor: nodeColor }]}>
+            <View
+              style={[styles.conceptIndicator, { backgroundColor: nodeColor }]}
+            >
               <Text style={styles.conceptLevel}>{item.depth + 1}</Text>
             </View>
             <View style={styles.conceptContent}>
@@ -561,8 +697,14 @@ const NotebookScreen = () => {
               <Text style={styles.conceptDescription}>{item.description}</Text>
               {item.hasChildren && (
                 <View style={styles.childrenInfo}>
-                  <MaterialIcons name="account-tree" size={16} color={nodeColor} />
-                  <Text style={[styles.conceptChildrenCount, { color: nodeColor }]}>
+                  <MaterialIcons
+                    name="account-tree"
+                    size={16}
+                    color={nodeColor}
+                  />
+                  <Text
+                    style={[styles.conceptChildrenCount, { color: nodeColor }]}
+                  >
                     {item.children?.length || 0} sub-concepts
                   </Text>
                 </View>
@@ -579,8 +721,8 @@ const NotebookScreen = () => {
           )}
         </View>
       </View>
-    )
-  }
+    );
+  };
 
   const renderMindmapDetail = () => {
     if (loading) {
@@ -597,11 +739,11 @@ const NotebookScreen = () => {
             </View>
           )}
         />
-      )
+      );
     }
 
     if (!selectedMindmap) {
-      return null
+      return null;
     }
 
     const data = [
@@ -613,7 +755,7 @@ const NotebookScreen = () => {
         key: `${node.nodeId}-${index}`,
         type: "concept",
       })),
-    ]
+    ];
 
     return (
       <FlatList
@@ -621,38 +763,46 @@ const NotebookScreen = () => {
         keyExtractor={(item) => item.key}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.contentContainer}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+          />
+        }
         renderItem={({ item }) => {
           if (item.type === "header") {
-            return renderMindmapDetailHeader()
+            return renderMindmapDetailHeader();
           } else if (item.type === "info") {
-            return renderMindmapInfo()
+            return renderMindmapInfo();
           } else if (item.type === "conceptsTitle") {
             return (
               <View style={styles.conceptsTitleContainer}>
                 <Text style={styles.conceptsTitle}>Mind Map Structure</Text>
-                <Text style={styles.conceptsSubtitle}>{flattenedNodes.length} total concepts</Text>
+                <Text style={styles.conceptsSubtitle}>
+                  {flattenedNodes.length} total concepts
+                </Text>
               </View>
-            )
+            );
           } else if (item.type === "concept") {
-            return renderMindmapNode({ item })
+            return renderMindmapNode({ item });
           }
-          return null
+          return null;
         }}
       />
-    )
-  }
+    );
+  };
 
   const renderMindmapsTab = () => {
     if (mindmapView === "subjects") {
-      return renderSubjectsList()
+      return renderSubjectsList();
     } else if (mindmapView === "mindmaps") {
-      return renderMindmapsList()
+      return renderMindmapsList();
     } else if (mindmapView === "detail") {
-      return renderMindmapDetail()
+      return renderMindmapDetail();
     }
-    return null
-  }
+    return null;
+  };
 
   const renderAutomationHeader = () => (
     <View style={styles.sectionHeader}>
@@ -666,7 +816,7 @@ const NotebookScreen = () => {
         </TouchableOpacity>
       </View>
     </View>
-  )
+  );
 
   const renderAutomationTab = () => {
     const data = [
@@ -676,7 +826,7 @@ const NotebookScreen = () => {
         key: `automation-${index}`,
         type: "automation",
       })),
-    ]
+    ];
 
     return (
       <FlatList
@@ -686,31 +836,43 @@ const NotebookScreen = () => {
         contentContainerStyle={styles.contentContainer}
         renderItem={({ item }) => {
           if (item.type === "header") {
-            return renderAutomationHeader()
+            return renderAutomationHeader();
           } else if (item.type === "automation") {
             return (
               <TouchableOpacity
                 style={styles.automationCard}
-                onPress={() => navigation.navigate("AutomationDetail", { item })}
+                onPress={() =>
+                  navigation.navigate("AutomationDetail", { item })
+                }
               >
                 <View style={styles.automationHeader}>
                   <View
                     style={[
                       styles.automationIcon,
                       {
-                        backgroundColor: item.icon === "email" ? "#4B4BFF15" : "#4ECDC415",
+                        backgroundColor:
+                          item.icon === "email" ? "#4B4BFF15" : "#4ECDC415",
                       },
                     ]}
                   >
-                    {item.icon === "email" && <MaterialIcons name="email" size={20} color="#4B4BFF" />}
-                    {item.icon === "note" && <MaterialIcons name="description" size={20} color="#4ECDC4" />}
+                    {item.icon === "email" && (
+                      <MaterialIcons name="email" size={20} color="#4B4BFF" />
+                    )}
+                    {item.icon === "note" && (
+                      <MaterialIcons
+                        name="description"
+                        size={20}
+                        color="#4ECDC4"
+                      />
+                    )}
                   </View>
                   <View style={styles.automationMeta}>
                     <View
                       style={[
                         styles.priorityBadge,
                         {
-                          backgroundColor: item.priority === "high" ? "#FF6B6B" : "#FFA726",
+                          backgroundColor:
+                            item.priority === "high" ? "#FF6B6B" : "#FFA726",
                         },
                       ]}
                     >
@@ -722,20 +884,28 @@ const NotebookScreen = () => {
                   </View>
                 </View>
                 <Text style={styles.automationTitle}>{item.title}</Text>
-                <Text style={styles.automationSubject}>Subject: {item.subject}</Text>
-                {item.to && <Text style={styles.automationTo}>To: {item.to}</Text>}
+                <Text style={styles.automationSubject}>
+                  Subject: {item.subject}
+                </Text>
+                {item.to && (
+                  <Text style={styles.automationTo}>To: {item.to}</Text>
+                )}
                 <View style={styles.automationFooter}>
                   <Text style={styles.automationDate}>{item.date}</Text>
-                  <MaterialIcons name="arrow-forward-ios" size={16} color="#666" />
+                  <MaterialIcons
+                    name="arrow-forward-ios"
+                    size={16}
+                    color="#666"
+                  />
                 </View>
               </TouchableOpacity>
-            )
+            );
           }
-          return null
+          return null;
         }}
       />
-    )
-  }
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -745,12 +915,12 @@ const NotebookScreen = () => {
       {/* Content */}
       {activeTab === "Notes" && renderNotesTab()}
       {activeTab === "Mindmaps" && renderMindmapsTab()}
-      {activeTab === "Automation" && renderAutomationTab()}
+      {activeTab === "Auto" && renderAutomationTab()}
     </View>
-  )
-}
+  );
+};
 
-export default NotebookScreen
+export default NotebookScreen;
 
 const styles = StyleSheet.create({
   container: {
@@ -770,6 +940,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 12,
     borderRadius: 8,
+    flexDirection: "row",
+    justifyContent: "center",
+  },
+  tabIcon: {
+    marginRight: 6,
   },
   activeTabButton: {
     backgroundColor: colors.primary,
@@ -780,7 +955,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   tabText: {
-    fontSize: 14,
     fontWeight: "600",
     color: "#666",
   },
@@ -1209,7 +1383,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   statusText: {
-    fontSize: 10,
+    fontSize: 10, 
     fontWeight: "600",
     color: "#666",
     textTransform: "uppercase",
@@ -1239,4 +1413,4 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#999",
   },
-})
+});

@@ -89,6 +89,7 @@ const RecordScreen = () => {
       });
   
       const textResponse = await response.text();
+      console.log(textResponse)
   
       // Get last message from streamed lines
       const lines = textResponse

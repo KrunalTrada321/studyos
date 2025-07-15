@@ -1,8 +1,8 @@
 "use client"
 
 import { MaterialIcons } from "@expo/vector-icons"
+import { AudioModule, RecordingPresets, useAudioRecorder } from "expo-audio"
 import { Camera, CameraView } from "expo-camera"
-import { useAudioRecorder, AudioModule, RecordingPresets } from "expo-audio"
 import type React from "react"
 import { useEffect, useRef, useState } from "react"
 import {
@@ -911,6 +911,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-})
+}) 
 
 export default CaptureScreen
+
+
+
+ 

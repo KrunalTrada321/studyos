@@ -3,108 +3,194 @@ import {
   MaterialCommunityIcons,
   MaterialIcons,
 } from "@expo/vector-icons";
-import { useNavigation, useFocusEffect } from "expo-router";
-import React, { useEffect, useState, useCallback } from "react";
+import { useFocusEffect, useNavigation } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   Image,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  RefreshControl,
-  ActivityIndicator,
-  Alert,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
 } from "react-native";
 import { colors } from "../utils/colors";
 import Constants from "../utils/constants";
 import { getToken } from "../utils/token";
 
-const subjects = [
-  { id: "1", name: "Math", lessons: 4, image: require("../assets/math.png") },
-  {
-    id: "2",
-    name: "Health",
-    lessons: 2,
-    image: require("../assets/health.png"),
-  },
-  {
-    id: "3",
-    name: "French",
-    lessons: 10,
-    image: require("../assets/french.png"),
-  },
-  {
-    id: "4",
-    name: "Science",
-    lessons: 4,
-    image: require("../assets/science.png"),
-  },
-  {
-    id: "5",
-    name: "Physics",
-    lessons: 4,
-    image: require("../assets/physics.png"),
-  },
-  {
-    id: "6",
-    name: "English",
-    lessons: 8,
-    image: require("../assets/english.png"),
-  },
-];
+interface Lesson {
+  id: string;
+  title: string;
+  completed: boolean;
+  questions: number;
+  explanations?: number;
+  created_at: string;
+}
+
+interface Subject {
+  id: string;
+  name: string;
+  lessons: number;
+}
+
+interface DateGroup {
+  date: string;
+  lessons: Lesson[];
+}
+
+interface ColorScheme {
+  bg: string;
+  icon: string;
+  accent: string;
+}
 
 export default function LearnScreen() {
   const [tab, setTab] = useState("Quiz");
-  const [lessons, setLessons] = useState<any[]>([]);
+  const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [subjectsLoading, setSubjectsLoading] = useState(true);
+  const [subjectsRefreshing, setSubjectsRefreshing] = useState(false);
+  const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
+  const [subjectLessons, setSubjectLessons] = useState<Lesson[]>([]);
+  const [subjectLessonsLoading, setSubjectLessonsLoading] = useState(false);
   const navigation = useNavigation();
 
   const ITEMS_PER_PAGE = 10;
 
-  // Helper function to format dates
+  // Enhanced subject colors for better UI
+  const subjectColors: ColorScheme[] = [
+    { bg: colors.background, icon: colors.primary, accent: colors.background },
+    // { bg: '#F0F9FF', icon: '#3B82F6', accent: '#93C5FD' },
+    // { bg: '#F0FDF4', icon: '#10B981', accent: '#6EE7B7' },
+    // { bg: '#FFFBEB', icon: '#F59E0B', accent: '#FCD34D' },
+    // { bg: '#FAF5FF', icon: '#8B5CF6', accent: '#C4B5FD' },
+    // { bg: '#FDF4FF', icon: '#EC4899', accent: '#F9A8D4' },
+    // { bg: '#F0FDFA', icon: '#06B6D4', accent: '#67E8F9' },
+    // { bg: '#FEFCE8', icon: '#84CC16', accent: '#BEF264' },
+  ];
+
+  const fetchSubjects = async () => {
+    try {
+      const authToken = await getToken();
+      const response = await fetch(`${Constants.api}/api/subjects`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setSubjects(data);
+      } else {
+        throw new Error(data.message || "Failed to fetch subjects");
+      }
+    } catch (error) {
+      console.error("Error fetching subjects:", error);
+      Alert.alert("Error", "Failed to load subjects. Please try again.");
+      setSubjects([]);
+    }
+  };
+
+  const fetchSubjectLessons = async (subjectName: string) => {
+    try {
+      setSubjectLessonsLoading(true);
+      const token = await getToken();
+      const res = await fetch(
+        `${Constants.api}/api/lessons?subject=${encodeURIComponent(subjectName)}&page=1&limit=${ITEMS_PER_PAGE}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      const data = await res.json();
+
+      if (res.ok) {
+        const newLessons = Array.isArray(data) ? data : data.lessons || [];
+        setSubjectLessons(newLessons);
+      } else {
+        throw new Error(data.message || "Failed to fetch subject lessons");
+      }
+    } catch (error) {
+      console.error("Error fetching subject lessons:", error);
+      Alert.alert("Error", "Failed to load subject lessons. Please try again.");
+      setSubjectLessons([]);
+    } finally {
+      setSubjectLessonsLoading(false);
+    }
+  };
+
+  const handleSubjectPress = (subject: Subject) => {
+    setSelectedSubject(subject);
+    fetchSubjectLessons(subject.name);
+  };
+
+  const handleBackNavigation = () => {
+    setSelectedSubject(null);
+    setSubjectLessons([]);
+  };
+
   const formatDate = (dateString: string | null): string | null => {
     if (!dateString) return null;
-    
+
     const date = new Date(dateString);
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    
+
     // Reset time to compare just dates
-    const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const yesterdayOnly = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
-    
+    const dateOnly = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate()
+    );
+    const todayOnly = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    );
+    const yesterdayOnly = new Date(
+      yesterday.getFullYear(),
+      yesterday.getMonth(),
+      yesterday.getDate()
+    );
+
     if (dateOnly.getTime() === todayOnly.getTime()) {
       return "Today";
     } else if (dateOnly.getTime() === yesterdayOnly.getTime()) {
       return "Yesterday";
     } else {
-      return date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year:
+          date.getFullYear() !== today.getFullYear() ? "numeric" : undefined,
       });
     }
   };
 
   // Group lessons by date
-  const groupLessonsByDate = (lessons: any[]) => {
-    const grouped = {};
-    
-    lessons.forEach(lesson => {
+  const groupLessonsByDate = (lessons: Lesson[]): DateGroup[] => {
+    const grouped: { [key: string]: Lesson[] } = {};
+
+    lessons.forEach((lesson) => {
       const dateKey = formatDate(lesson.created_at) || "No Date";
       if (!grouped[dateKey]) {
         grouped[dateKey] = [];
       }
       grouped[dateKey].push(lesson);
     });
-    
+
     // Sort groups by date (most recent first)
     const sortedGroups = Object.keys(grouped).sort((a, b) => {
       if (a === "Today") return -1;
@@ -113,12 +199,12 @@ export default function LearnScreen() {
       if (b === "Yesterday") return 1;
       if (a === "No Date") return 1;
       if (b === "No Date") return -1;
-      return new Date(b) - new Date(a);
+      return new Date(b).getTime() - new Date(a).getTime();
     });
-    
-    return sortedGroups.map(date => ({
+
+    return sortedGroups.map((date) => ({
       date,
-      lessons: grouped[date]
+      lessons: grouped[date],
     }));
   };
 
@@ -132,27 +218,27 @@ export default function LearnScreen() {
         }
       );
       const data = await res.json();
-      
+
       if (res.ok) {
         const newLessons = Array.isArray(data) ? data : data.lessons || [];
-        
+
         if (append) {
-          setLessons(prev => [...prev, ...newLessons]);
+          setLessons((prev) => [...prev, ...newLessons]);
         } else {
           setLessons(newLessons);
         }
-        
+
         // Check if there are more items
         setHasMore(newLessons.length === ITEMS_PER_PAGE);
       } else {
-        throw new Error(data.message || 'Failed to fetch lessons');
+        throw new Error(data.message || "Failed to fetch lessons");
       }
     } catch (error) {
-      console.error('Error fetching lessons:', error);
+      console.error("Error fetching lessons:", error);
       if (!append) {
         setLessons([]);
       }
-      Alert.alert('Error', 'Failed to load lessons. Please try again.');
+      Alert.alert("Error", "Failed to load lessons. Please try again.");
     }
   };
 
@@ -164,9 +250,15 @@ export default function LearnScreen() {
     setRefreshing(false);
   }, []);
 
+  const onSubjectsRefresh = useCallback(async () => {
+    setSubjectsRefreshing(true);
+    await fetchSubjects();
+    setSubjectsRefreshing(false);
+  }, []);
+
   const loadMoreLessons = async () => {
     if (loadingMore || !hasMore) return;
-    
+
     setLoadingMore(true);
     const nextPage = page + 1;
     setPage(nextPage);
@@ -174,11 +266,14 @@ export default function LearnScreen() {
     setLoadingMore(false);
   };
 
-  const handleScroll = ({ nativeEvent }: any) => {
+  const handleScroll = ({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
     const paddingToBottom = 20;
-    
-    if (layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom) {
+
+    if (
+      layoutMeasurement.height + contentOffset.y >=
+      contentSize.height - paddingToBottom
+    ) {
       loadMoreLessons();
     }
   };
@@ -193,14 +288,25 @@ export default function LearnScreen() {
     initialLoad();
   }, []);
 
+  // Initial subjects load
+  useEffect(() => {
+    const initialSubjectsLoad = async () => {
+      setSubjectsLoading(true);
+      await fetchSubjects();
+      setSubjectsLoading(false);
+    };
+    initialSubjectsLoad();
+  }, []);
+
   // Refresh when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       onRefresh();
-    }, [onRefresh])
+      onSubjectsRefresh();
+    }, [onRefresh, onSubjectsRefresh])
   );
 
-  const renderLessonCard = (lesson: any) => (
+  const renderLessonCard = (lesson: Lesson) => (
     <View key={lesson.id} style={styles.lessonCard}>
       <View style={styles.lessonContent}>
         <View style={styles.lessonHeader}>
@@ -221,7 +327,7 @@ export default function LearnScreen() {
             {lesson.title}
           </Text>
         </View>
-        
+
         <View style={styles.lessonMeta}>
           <View style={styles.metaItem}>
             <MaterialIcons name="quiz" size={16} color="#6B7280" />
@@ -239,12 +345,12 @@ export default function LearnScreen() {
           )}
         </View>
       </View>
-      
+
       {!lesson.completed && (
         <TouchableOpacity
           style={styles.startButton}
           onPress={() =>
-            navigation.navigate("LessonStart", {
+            (navigation as any).navigate("LessonStart", {
               lessonId: lesson.id,
               totalQuestions: lesson.questions,
             })
@@ -254,7 +360,7 @@ export default function LearnScreen() {
           <Ionicons name="play" size={16} color="#fff" />
         </TouchableOpacity>
       )}
-      
+
       {lesson.completed && (
         <View style={styles.completedLabel}>
           <Text style={styles.completedText}>Completed</Text>
@@ -263,7 +369,7 @@ export default function LearnScreen() {
     </View>
   );
 
-  const renderDateGroup = (group: any) => (
+  const renderDateGroup = (group: DateGroup) => (
     <View key={group.date} style={styles.dateGroup}>
       <View style={styles.dateHeader}>
         <Text style={styles.dateTitle}>{group.date}</Text>
@@ -287,12 +393,110 @@ export default function LearnScreen() {
     </View>
   );
 
+  const renderSubjectsEmptyState = () => (
+    <View style={styles.emptyState}>
+      <MaterialIcons name="school" size={64} color="#D1D5DB" />
+      <Text style={styles.emptyTitle}>No subjects available</Text>
+      <Text style={styles.emptySubtitle}>
+        Check back later for new subjects
+      </Text>
+    </View>
+  );
+
   const renderLoadingState = () => (
     <View style={styles.loadingState}>
       <ActivityIndicator size="large" color={colors.primary} />
       <Text style={styles.loadingText}>Loading lessons...</Text>
     </View>
   );
+
+  const renderSubjectsLoadingState = () => (
+    <View style={styles.loadingState}>
+      <ActivityIndicator size="large" color={colors.primary} />
+      <Text style={styles.loadingText}>Loading subjects...</Text>
+    </View>
+  );
+
+  const renderSubjectCard = (subject: Subject, index: number) => {
+    const colorScheme = subjectColors[index % subjectColors.length];
+    
+    return (
+      <TouchableOpacity 
+        key={subject.id} 
+        style={[styles.subjectCard, { backgroundColor: colorScheme.bg }]}
+        onPress={() => handleSubjectPress(subject)}
+        activeOpacity={0.8}
+      >
+        <View style={[styles.subjectIconContainer, { backgroundColor: colorScheme.icon }]}>
+          <MaterialIcons name="school" size={24} color="#fff" />
+        </View>
+        
+        <View style={styles.subjectContent}>
+          <Text style={styles.subjectTitle} numberOfLines={2}>
+            {subject.name}
+          </Text>
+          <Text style={styles.subjectSubtitle}>
+            {subject.lessons || 0} Lessons
+          </Text>
+        </View>
+        
+        <View style={[styles.subjectArrow, { backgroundColor: colorScheme.accent }]}>
+          <Ionicons name="chevron-forward" size={16} color={colorScheme.icon} />
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderSubjectLessonsView = () => {
+    const groupedSubjectLessons = groupLessonsByDate(subjectLessons);
+    
+    return (
+      <View style={styles.subjectLessonsContainer}>
+        {/* Header with back button */}
+        <View style={styles.sectionHeader}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={handleBackNavigation}
+          >
+            <MaterialIcons name="arrow-back" size={20} color={colors.primary} />
+            <Text style={styles.backButtonText}>{selectedSubject?.name}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Lessons content */}
+        <ScrollView
+          style={styles.subjectLessonsScrollView}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={subjectLessonsLoading}
+              onRefresh={() => selectedSubject && fetchSubjectLessons(selectedSubject.name)}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
+        >
+          {subjectLessonsLoading ? (
+            renderLoadingState()
+          ) : subjectLessons.length === 0 ? (
+            <View style={styles.emptyState}>
+              <MaterialCommunityIcons
+                name="book-open-page-variant"
+                size={64}
+                color="#D1D5DB"
+              />
+              <Text style={styles.emptyTitle}>No lessons found</Text>
+              <Text style={styles.emptySubtitle}>
+                This subject doesn't have any lessons yet
+              </Text>
+            </View>
+          ) : (
+            groupedSubjectLessons.map(renderDateGroup)
+          )}
+        </ScrollView>
+      </View>
+    );
+  };
 
   const groupedLessons = groupLessonsByDate(lessons);
 
@@ -304,12 +508,14 @@ export default function LearnScreen() {
           style={[styles.tab, tab === "Quiz" && styles.activeTab]}
           onPress={() => setTab("Quiz")}
         >
-          <MaterialIcons 
-            name="quiz" 
-            size={20} 
-            color={tab === "Quiz" ? "#fff" : "#6B7280"} 
+          <MaterialIcons
+            name="quiz"
+            size={20}
+            color={tab === "Quiz" ? "#fff" : "#6B7280"}
           />
-          <Text style={[styles.tabText, tab === "Quiz" && styles.activeTabText]}>
+          <Text
+            style={[styles.tabText, tab === "Quiz" && styles.activeTabText]}
+          >
             Quiz
           </Text>
         </TouchableOpacity>
@@ -317,12 +523,14 @@ export default function LearnScreen() {
           style={[styles.tab, tab === "Subjects" && styles.activeTab]}
           onPress={() => setTab("Subjects")}
         >
-          <MaterialIcons 
-            name="school" 
-            size={20} 
-            color={tab === "Subjects" ? "#fff" : "#6B7280"} 
+          <MaterialIcons
+            name="school"
+            size={20}
+            color={tab === "Subjects" ? "#fff" : "#6B7280"}
           />
-          <Text style={[styles.tabText, tab === "Subjects" && styles.activeTabText]}>
+          <Text
+            style={[styles.tabText, tab === "Subjects" && styles.activeTabText]}
+          >
             All Subjects
           </Text>
         </TouchableOpacity>
@@ -359,22 +567,30 @@ export default function LearnScreen() {
             </>
           )}
         </ScrollView>
+      ) : selectedSubject ? (
+        renderSubjectLessonsView()
       ) : (
-        <ScrollView 
+        <ScrollView
           style={styles.subjectsContainer}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={subjectsRefreshing}
+              onRefresh={onSubjectsRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
         >
-          <View style={styles.grid}>
-            {subjects.map((subject) => (
-              <TouchableOpacity key={subject.id} style={styles.subjectCard}>
-                <Image source={subject.image} style={styles.subjectImage} />
-                <Text style={styles.subjectTitle}>{subject.name}</Text>
-                <Text style={styles.subjectSubtitle}>
-                  {subject.lessons} Lessons
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {subjectsLoading ? (
+            renderSubjectsLoadingState()
+          ) : subjects.length === 0 ? (
+            renderSubjectsEmptyState()
+          ) : (
+            <View style={styles.subjectsGrid}>
+              {subjects.map((subject, index) => renderSubjectCard(subject, index))}
+            </View>
+          )}
         </ScrollView>
       )}
     </View>
@@ -441,7 +657,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#E8E8E8",
     borderRadius: 12,
     padding: 4,
-    marginTop: 20
+    marginTop: 20,
   },
   tab: {
     flex: 1,
@@ -616,41 +832,75 @@ const styles = StyleSheet.create({
   },
   subjectsContainer: {
     flex: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
+  subjectsGrid: {
     paddingTop: 8,
+    paddingBottom: 20,
   },
   subjectCard: {
-    width: "47%",
-    backgroundColor: "#fff",
-    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 16,
     padding: 20,
     marginBottom: 16,
-    alignItems: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  subjectImage: {
-    width: 50,
-    height: 50,
-    resizeMode: "contain",
+  subjectIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 16,
+  },
+  subjectContent: {
+    flex: 1,
   },
   subjectTitle: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 18,
+    fontWeight: "700",
     color: "#1F2937",
-    marginTop: 12,
+    marginBottom: 4,
   },
   subjectSubtitle: {
-    fontSize: 12,
+    fontSize: 14,
     color: "#6B7280",
-    marginTop: 4,
+    fontWeight: "500",
+  },
+  subjectArrow: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  subjectLessonsContainer: {
+    flex: 1,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+    paddingHorizontal: 20,
+  },
+  backButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  backButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.primary,
+  },
+  subjectLessonsScrollView: {
+    flex: 1,
+    paddingHorizontal: 16,
   },
 });

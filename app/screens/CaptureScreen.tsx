@@ -1,10 +1,10 @@
 "use client"
 
 import { MaterialIcons } from "@expo/vector-icons"
+import { AudioModule, RecordingPresets, useAudioRecorder } from "expo-audio"
 import { Camera, CameraView } from "expo-camera"
-import { useAudioRecorder, AudioModule, RecordingPresets } from "expo-audio"
 import type React from "react"
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useEffect, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
@@ -16,14 +16,11 @@ import {
   Text,
   TouchableOpacity,
   View,
-  Animated,
   type ListRenderItem,
 } from "react-native"
-// import { useFocusEffect } from "@react-navigation/native"
 import { colors } from "../utils/colors"
 import Constants from "../utils/constants"
 import { getToken } from "../utils/token"
-import { useFocusEffect } from "expo-router"
 
 const { width } = Dimensions.get("window")
 
@@ -40,101 +37,16 @@ interface RecordingState {
   uri: string | null
 }
 
-interface SuccessPopupProps {
-  visible: boolean
-  message: string
-  onClose: () => void
-}
-
 type Mode = "record" | "scan"
-
-// Custom Success Popup Component
-const SuccessPopup: React.FC<SuccessPopupProps> = ({ visible, message, onClose }) => {
-  const fadeAnim = useRef(new Animated.Value(0)).current
-  const scaleAnim = useRef(new Animated.Value(0.8)).current
-
-  useEffect(() => {
-    if (visible) {
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          tension: 100,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-      ]).start()
-
-      // Auto close after 3 seconds
-      const timer = setTimeout(() => {
-        handleClose()
-      }, 3000)
-
-      return () => clearTimeout(timer)
-    }
-  }, [visible])
-
-  const handleClose = () => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scaleAnim, {
-        toValue: 0.8,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      onClose()
-    })
-  }
-
-  if (!visible) return null
-
-  return (
-    <Modal transparent visible={visible} animationType="none">
-      <Animated.View style={[styles.successOverlay, { opacity: fadeAnim }]}>
-        <Animated.View
-          style={[
-            styles.successPopup,
-            {
-              transform: [{ scale: scaleAnim }],
-            },
-          ]}
-        >
-          <View style={styles.successIcon}>
-            <MaterialIcons name="check-circle" size={48} color="#4CAF50" />
-          </View>
-          <Text style={styles.successTitle}>Success!</Text>
-          <Text style={styles.successMessage}>{message}</Text>
-          <TouchableOpacity style={styles.successButton} onPress={handleClose}>
-            <Text style={styles.successButtonText}>OK</Text>
-          </TouchableOpacity>
-        </Animated.View>
-      </Animated.View>
-    </Modal>
-  )
-}
 
 const CaptureScreen: React.FC = () => {
   const [mode, setMode] = useState<Mode>("record")
   const [hasPermission, setHasPermission] = useState<boolean | null>(null)
   const [hasAudioPermission, setHasAudioPermission] = useState<boolean | null>(null)
   const [loading, setLoading] = useState<boolean>(false)
-  const [recordingLoading, setRecordingLoading] = useState<boolean>(false)
   const [capturedImages, setCapturedImages] = useState<CapturedImage[]>([])
   const [selectedImage, setSelectedImage] = useState<CapturedImage | null>(null)
   const [isPreviewMode, setIsPreviewMode] = useState<boolean>(false)
-  const [successPopup, setSuccessPopup] = useState<{ visible: boolean; message: string }>({
-    visible: false,
-    message: "",
-  })
   const [recording, setRecording] = useState<RecordingState>({
     isRecording: false,
     isPaused: false,
@@ -142,59 +54,35 @@ const CaptureScreen: React.FC = () => {
     uri: null,
   })
   const [timer, setTimer] = useState<number>(0)
-  const [cameraReady, setCameraReady] = useState<boolean>(false)
-
   const cameraRef = useRef<CameraView>(null)
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Use the audio recorder hook with low quality for smaller files
   const audioRecorder = useAudioRecorder(RecordingPresets.LOW_QUALITY)
 
-  // Handle camera permissions and setup when screen is focused
-  useFocusEffect(
-    useCallback(() => {
-      const setupCamera = async () => {
-        if (mode === "scan") {
-          try {
-            const { status } = await Camera.requestCameraPermissionsAsync()
-            setHasPermission(status === "granted")
-            if (status === "granted") {
-              setCameraReady(true)
-            }
-          } catch (error) {
-            console.error("Camera permission error:", error)
-            setHasPermission(false)
-          }
-        }
-      }
-
-      const setupAudio = async () => {
-        if (mode === "record") {
-          try {
-            const status = await AudioModule.requestRecordingPermissionsAsync()
-            if (!status.granted) {
-              setHasAudioPermission(false)
-            } else {
-              setHasAudioPermission(true)
-            }
-          } catch (error) {
-            console.error("Audio permission error:", error)
+  useEffect(() => {
+    if (mode === "scan") {
+      ;(async () => {
+        const { status } = await Camera.requestCameraPermissionsAsync()
+        setHasPermission(status === "granted")
+      })()
+    } else if (mode === "record") {
+      ;(async () => {
+        try {
+          const status = await AudioModule.requestRecordingPermissionsAsync()
+          if (!status.granted) {
             setHasAudioPermission(false)
+            Alert.alert("Permission Required", "Permission to access microphone was denied")
+          } else {
+            setHasAudioPermission(true)
           }
+        } catch (error) {
+          console.error("Audio permission error:", error)
+          setHasAudioPermission(false)
         }
-      }
-
-      setupCamera()
-      setupAudio()
-
-      return () => {
-        // Cleanup when screen loses focus
-        if (recording.isRecording) {
-          stopRecording()
-        }
-      }
-    }, [mode]),
-  )
+      })()
+    }
+  }, [mode])
 
   useEffect(() => {
     return () => {
@@ -204,18 +92,11 @@ const CaptureScreen: React.FC = () => {
     }
   }, [])
 
-  const showSuccessPopup = (message: string) => {
-    setSuccessPopup({ visible: true, message })
-  }
-
-  const hideSuccessPopup = () => {
-    setSuccessPopup({ visible: false, message: "" })
-  }
-
   const formatTime = (seconds: number): string => {
     const hrs = Math.floor(seconds / 3600)
     const mins = Math.floor((seconds % 3600) / 60)
     const secs = seconds % 60
+
     if (hrs > 0) {
       return `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
     }
@@ -234,6 +115,7 @@ const CaptureScreen: React.FC = () => {
       // Prepare and start recording
       await audioRecorder.prepareToRecordAsync()
       audioRecorder.record()
+      
       setRecording((prev) => ({ ...prev, isRecording: true, isPaused: false }))
       setTimer(0)
 
@@ -271,6 +153,7 @@ const CaptureScreen: React.FC = () => {
     try {
       audioRecorder.record()
       setRecording((prev) => ({ ...prev, isPaused: false }))
+
       // Resume timer
       timerRef.current = setInterval(() => {
         setTimer((prev) => {
@@ -292,16 +175,20 @@ const CaptureScreen: React.FC = () => {
       // Stop recording - the URI will be available on audioRecorder.uri
       await audioRecorder.stop()
       const uri = audioRecorder.uri
+
       setRecording({
         isRecording: false,
         isPaused: false,
         duration: timer,
         uri,
       })
+
       setTimer(0)
+
       if (timerRef.current) {
         clearInterval(timerRef.current)
       }
+
       if (uri) {
         await uploadRecording(uri)
       }
@@ -312,7 +199,8 @@ const CaptureScreen: React.FC = () => {
   }
 
   const uploadRecording = async (uri: string): Promise<void> => {
-    setRecordingLoading(true)
+    setLoading(true)
+
     try {
       const formData = new FormData()
       formData.append("file", {
@@ -322,6 +210,7 @@ const CaptureScreen: React.FC = () => {
       } as any)
 
       const token = await getToken()
+
       const response = await fetch(`${Constants.api}/api/ai/analyse-recording`, {
         method: "POST",
         headers: {
@@ -337,24 +226,28 @@ const CaptureScreen: React.FC = () => {
 
       const data = await response.json()
       console.log("Recording Response:", data)
-      showSuccessPopup(data.message || "Recording processed successfully!")
+
+      Alert.alert("Success", data.message || "Recording processed successfully!")
       setTimer(0)
     } catch (err) {
       console.error("Upload recording error:", err)
       Alert.alert("Error", "Failed to upload recording. Please try again.")
     } finally {
-      setRecordingLoading(false)
+      setLoading(false)
     }
   }
 
   const captureImage = async (): Promise<void> => {
-    if (!cameraRef.current || capturedImages.length >= 100 || !cameraReady) return
+    if (!cameraRef.current || capturedImages.length >= 100) return
+
     setLoading(true)
+
     try {
       const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.2,
+        quality: 0.3,
         skipProcessing: true,
       })
+
       if (photo) {
         setCapturedImages((prev) => [
           ...prev,
@@ -382,9 +275,12 @@ const CaptureScreen: React.FC = () => {
       Alert.alert("No Images", "Please capture some images first")
       return
     }
+
     setLoading(true)
+
     try {
       const formData = new FormData()
+
       capturedImages.forEach((image, index) => {
         formData.append("files", {
           uri: image.uri,
@@ -394,6 +290,7 @@ const CaptureScreen: React.FC = () => {
       })
 
       const token = await getToken()
+
       const response = await fetch(`${Constants.api}/api/ai/scan-notes`, {
         method: "POST",
         headers: {
@@ -409,7 +306,8 @@ const CaptureScreen: React.FC = () => {
 
       const data = await response.json()
       console.log("Scan Response:", data)
-      showSuccessPopup(data.message || "All images processed successfully!")
+
+      Alert.alert("Success", data.message || "All images processed successfully!")
       setCapturedImages([])
     } catch (err) {
       console.error("Upload error:", err)
@@ -444,9 +342,6 @@ const CaptureScreen: React.FC = () => {
               } else {
                 const { status } = await Camera.requestCameraPermissionsAsync()
                 setHasPermission(status === "granted")
-                if (status === "granted") {
-                  setCameraReady(true)
-                }
               }
             }}
           >
@@ -463,20 +358,15 @@ const CaptureScreen: React.FC = () => {
       <View style={styles.modeSelector}>
         <TouchableOpacity
           style={[styles.modeBtn, mode === "record" && styles.activeModeBtn]}
-          onPress={() => {
-            setMode("record")
-            setCameraReady(false)
-          }}
+          onPress={() => setMode("record")}
         >
           <MaterialIcons name="mic" size={20} color={mode === "record" ? "#fff" : "#666"} />
           <Text style={mode === "record" ? styles.activeModeText : styles.inactiveModeText}>Record</Text>
         </TouchableOpacity>
+
         <TouchableOpacity
           style={[styles.modeBtn, mode === "scan" && styles.activeModeBtn]}
-          onPress={() => {
-            setMode("scan")
-            setCameraReady(true)
-          }}
+          onPress={() => setMode("scan")}
         >
           <MaterialIcons name="camera-alt" size={20} color={mode === "scan" ? "#fff" : "#666"} />
           <Text style={mode === "scan" ? styles.activeModeText : styles.inactiveModeText}>Scan</Text>
@@ -502,22 +392,10 @@ const CaptureScreen: React.FC = () => {
               </Text>
             </View>
 
-            {/* Recording Loading Indicator */}
-            {recordingLoading && (
-              <View style={styles.recordingLoadingContainer}>
-                <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={styles.recordingLoadingText}>Processing recording...</Text>
-              </View>
-            )}
-
             {/* Recording Controls */}
             <View style={styles.recordingControls}>
               {!recording.isRecording ? (
-                <TouchableOpacity
-                  style={[styles.recordButton, recordingLoading && styles.recordButtonDisabled]}
-                  onPress={startRecording}
-                  disabled={recordingLoading}
-                >
+                <TouchableOpacity style={styles.recordButton} onPress={startRecording} disabled={loading}>
                   <MaterialIcons name="mic" size={40} color="#fff" />
                 </TouchableOpacity>
               ) : (
@@ -525,16 +403,12 @@ const CaptureScreen: React.FC = () => {
                   <TouchableOpacity
                     style={styles.pauseButton}
                     onPress={recording.isPaused ? resumeRecording : pauseRecording}
-                    disabled={recordingLoading}
                   >
                     <MaterialIcons name={recording.isPaused ? "play-arrow" : "pause"} size={32} color="#fff" />
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.stopButton, recordingLoading && styles.stopButtonDisabled]}
-                    onPress={stopRecording}
-                    disabled={recordingLoading}
-                  >
-                    {recordingLoading ? (
+
+                  <TouchableOpacity style={styles.stopButton} onPress={stopRecording} disabled={loading}>
+                    {loading ? (
                       <ActivityIndicator color="#fff" size="small" />
                     ) : (
                       <MaterialIcons name="stop" size={32} color="#fff" />
@@ -543,11 +417,10 @@ const CaptureScreen: React.FC = () => {
                 </View>
               )}
             </View>
+
             <Text style={styles.recordText}>
               {!recording.isRecording
-                ? recordingLoading
-                  ? "Processing recording..."
-                  : "Tap to start recording"
+                ? "Tap to start recording"
                 : recording.isPaused
                   ? "Recording paused"
                   : "Recording in progress..."}
@@ -562,19 +435,7 @@ const CaptureScreen: React.FC = () => {
           <View style={styles.scanSection}>
             {/* Camera Preview */}
             <View style={styles.cameraContainer}>
-              {hasPermission && cameraReady ? (
-                <CameraView
-                  ref={cameraRef}
-                  style={styles.cameraPreview}
-                  facing="back"
-                  onCameraReady={() => setCameraReady(true)}
-                />
-              ) : (
-                <View style={styles.cameraPlaceholder}>
-                  <ActivityIndicator size="large" color={colors.primary} />
-                  <Text style={styles.cameraPlaceholderText}>Initializing camera...</Text>
-                </View>
-              )}
+              <CameraView ref={cameraRef} style={styles.cameraPreview} facing="back" />
               <View style={styles.cameraOverlay}>
                 {/* Focus Box */}
                 <View style={styles.focusBox}>
@@ -591,10 +452,10 @@ const CaptureScreen: React.FC = () => {
               <TouchableOpacity
                 style={[
                   styles.captureButton,
-                  (loading || capturedImages.length >= 100 || !cameraReady) && styles.captureButtonDisabled,
+                  (loading || capturedImages.length >= 100) && styles.captureButtonDisabled,
                 ]}
                 onPress={captureImage}
-                disabled={loading || capturedImages.length >= 100 || !cameraReady}
+                disabled={loading || capturedImages.length >= 100}
               >
                 {loading ? (
                   <ActivityIndicator color="#fff" size="large" />
@@ -602,6 +463,7 @@ const CaptureScreen: React.FC = () => {
                   <MaterialIcons name="camera" size={32} color="#fff" />
                 )}
               </TouchableOpacity>
+
               {capturedImages.length > 0 && (
                 <TouchableOpacity style={styles.previewButton} onPress={() => setIsPreviewMode(true)}>
                   <MaterialIcons name="photo-library" size={24} color={colors.primary} />
@@ -634,6 +496,7 @@ const CaptureScreen: React.FC = () => {
             <MaterialIcons name="clear-all" size={20} color="#ff4444" />
             <Text style={styles.clearButtonText}>Clear All</Text>
           </TouchableOpacity>
+
           <TouchableOpacity
             style={[styles.uploadButton, loading && styles.uploadButtonDisabled]}
             onPress={uploadAllImages}
@@ -651,9 +514,6 @@ const CaptureScreen: React.FC = () => {
         </View>
       )}
 
-      {/* Success Popup */}
-      <SuccessPopup visible={successPopup.visible} message={successPopup.message} onClose={hideSuccessPopup} />
-
       {/* Preview Modal */}
       <Modal visible={isPreviewMode} animationType="slide" onRequestClose={() => setIsPreviewMode(false)}>
         <View style={styles.previewModal}>
@@ -664,6 +524,7 @@ const CaptureScreen: React.FC = () => {
             <Text style={styles.previewTitle}>Review Images</Text>
             <Text style={styles.previewCounter}>{capturedImages.length} / 100</Text>
           </View>
+
           <FlatList
             data={capturedImages}
             renderItem={renderCapturedImage}
@@ -759,16 +620,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontWeight: "500",
   },
-  recordingLoadingContainer: {
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  recordingLoadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: colors.primary,
-    fontWeight: "500",
-  },
   recordingControls: {
     marginBottom: 30,
   },
@@ -795,9 +646,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     elevation: 4,
   },
-  stopButtonDisabled: {
-    opacity: 0.7,
-  },
   recordingInfo: {
     marginTop: 30,
     alignItems: "center",
@@ -821,15 +669,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
   },
-  recordButtonDisabled: {
-    opacity: 0.5,
-  },
   recordText: {
     marginTop: 20,
     fontSize: 18,
     fontWeight: "600",
     color: "#333",
-    textAlign: "center",
   },
   scanSection: {
     flex: 1,
@@ -843,18 +687,6 @@ const styles = StyleSheet.create({
   cameraPreview: {
     width: "100%",
     height: (width - 40) * (9 / 16),
-  },
-  cameraPlaceholder: {
-    width: "100%",
-    height: (width - 40) * (9 / 16),
-    backgroundColor: "#f0f0f0",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  cameraPlaceholderText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: "#666",
   },
   cameraOverlay: {
     position: "absolute",
@@ -1079,56 +911,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  // Success Popup Styles
-  successOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 20,
-  },
-  successPopup: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 24,
-    alignItems: "center",
-    minWidth: 280,
-    maxWidth: 320,
-    elevation: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-  },
-  successIcon: {
-    marginBottom: 16,
-  },
-  successTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#1A1A1A",
-    marginBottom: 8,
-  },
-  successMessage: {
-    fontSize: 16,
-    color: "#666",
-    textAlign: "center",
-    marginBottom: 24,
-    lineHeight: 22,
-  },
-  successButton: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 32,
-    paddingVertical: 12,
-    borderRadius: 8,
-    minWidth: 100,
-  },
-  successButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-})
+}) 
 
 export default CaptureScreen
+
+
+
+ 

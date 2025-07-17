@@ -1,3 +1,5 @@
+"use client";
+
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useEffect, useState } from "react";
 import {
@@ -25,6 +27,8 @@ const colors = {
   lightRed: "#FFDEDE",
   lightPrimary: "#DDE1FF",
 };
+
+const { width, height } = Dimensions.get("window");
 
 interface Lesson {
   id: string;

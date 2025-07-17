@@ -1,3 +1,5 @@
+"use client"
+
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from "react-native"
 import { useState, useRef } from "react"
 import { Audio } from "expo-av"

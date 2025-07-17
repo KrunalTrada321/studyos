@@ -9,8 +9,7 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.swiftsaas.studyos"
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
@@ -18,11 +17,7 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.swiftsaas.studyos",
-      "permissions": [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
-      ]
+      "package": "com.swiftsaas.studyos"
     },
     "web": {
       "bundler": "metro",
@@ -40,14 +35,7 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-audio",
-      "expo-web-browser",
-      [
-        "@react-native-google-signin/google-signin",
-        {
-          "iosUrlScheme": "com.googleusercontent.apps._some_id_here_"
-        }
-      ]
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true
